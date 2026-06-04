@@ -613,13 +613,14 @@ function OverView({habits,logs,onSel, level, xp, globalStreakData}){
   );
 }
 
+// Data Science Correlation Insight Component
 function InsightEngine({ habits, logs }) {
   const [insight, setInsight] = useState("Log more habits to generate advanced data correlations.");
 
   useEffect(() => {
-    let maxCorr = 0;
-    let bestPair = null;
+    let validInsights = [];
 
+    // Cross-reference every habit against every other habit
     for (let i = 0; i < habits.length; i++) {
       for (let j = 0; j < habits.length; j++) {
         if (i === j) continue;
@@ -636,25 +637,40 @@ function InsightEngine({ habits, logs }) {
           }
         });
 
+        // Ensure statistical relevance (needs to happen more than twice)
         if (count1 > 2) {
           let correlation = countBoth / count1;
-          if (correlation > maxCorr) {
-            maxCorr = correlation;
-            bestPair = { h1, h2, pct: Math.round(correlation * 100) };
+          // Gather ALL insights that have at least a 50% correlation
+          if (correlation >= 0.5) {
+            validInsights.push({ h1, h2, pct: Math.round(correlation * 100) });
           }
         }
       }
     }
 
-    if (bestPair && bestPair.pct >= 50) {
+    if (validInsights.length > 0) {
+      // Pick a random insight from the valid list so it changes on refresh!
+      const randomIndex = Math.floor(Math.random() * validInsights.length);
+      const bestPair = validInsights[randomIndex];
+      
       setInsight(
         <>
           <div className="insight-tag">Data Insight</div><br/>
           When you complete <span>{bestPair.h1.emoji} {bestPair.h1.name}</span>, you are <span>{bestPair.pct}%</span> likely to also complete <span>{bestPair.h2.emoji} {bestPair.h2.name}</span>.
         </>
       );
+    } else {
+        setInsight("Keep logging habits! The engine needs a few more days of data to find patterns.");
     }
   }, [habits, logs]);
+
+  return (
+    <div className="insight-card">
+      <div className="insight-icon">🧠</div>
+      <div className="insight-text">{insight}</div>
+    </div>
+  );
+}
 
   return (
     <div className="insight-card">
