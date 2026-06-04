@@ -1,3 +1,4 @@
+<!-- Author: Parshwa Mehta (20240802566) -->
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -14,9 +15,7 @@
 <style>
 *,*::before,*::after{box-sizing:border-box;margin:0;padding:0;}
 :root{
-  --bg:#0e0e0f;--bg2:#141416;--bg3:#1a1a1d;--bg4:#222226;--bg5:#
-  
-  2a2a2e;
+  --bg:#0e0e0f;--bg2:#141416;--bg3:#1a1a1d;--bg4:#222226;--bg5:#2a2a2e;
   --border:#2e2e34;--border2:#3a3a42;
   --text:#f0eff4;--text2:#a09fb5;--text3:#5e5d72;
   --accent:#e07b39;--accent2:#f0a460;--accent-glow:rgba(224,123,57,0.15);
@@ -34,7 +33,7 @@ body{font-family:var(--font);background:var(--bg);color:var(--text);font-size:14
 ::-webkit-scrollbar-track{background:transparent;}
 ::-webkit-scrollbar-thumb{background:var(--border2);border-radius:3px;}
 .shell{display:flex;height:100vh;overflow:hidden;}
- 
+
 /* SIDEBAR */
 .sidebar{width:var(--sw);min-width:var(--sw);background:var(--bg2);border-right:1px solid var(--border);display:flex;flex-direction:column;overflow:hidden;}
 .sb-header{padding:22px 18px 16px;border-bottom:1px solid var(--border);}
@@ -65,14 +64,14 @@ body{font-family:var(--font);background:var(--bg);color:var(--text);font-size:14
 .xp-meta{display:flex;justify-content:space-between;font-size:10px;color:var(--text3);margin-bottom:4px;font-weight:600;}
 .xp-bar{height:3px;background:var(--bg5);border-radius:99px;overflow:hidden;}
 .xp-fill{height:100%;border-radius:99px;background:linear-gradient(90deg,#8b5cf6,#ec4899);transition:width 0.6s ease;}
- 
+
 /* MAIN */
 .main{flex:1;display:flex;flex-direction:column;overflow:hidden;background:var(--bg);}
 .topbar{padding:20px 28px 0;flex-shrink:0;}
 .topbar-inner{display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:18px;}
 .topbar-title{font-size:28px;font-weight:700;letter-spacing:-0.03em;line-height:1;}
 .topbar-sub{font-size:12px;color:var(--text3);margin-top:3px;letter-spacing:0.02em;}
- 
+
 /* STATS */
 .stats-row{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:20px;}
 .stat-card{background:var(--bg3);border:1px solid var(--border);border-radius:var(--r);padding:16px 18px;position:relative;overflow:hidden;transition:all var(--tr);cursor:default;}
@@ -81,16 +80,16 @@ body{font-family:var(--font);background:var(--bg);color:var(--text);font-size:14
 .stat-value{font-size:28px;font-weight:700;line-height:1;letter-spacing:-0.03em;margin-bottom:3px;}
 .stat-label{font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:0.1em;color:var(--text3);}
 .stat-icon-bg{position:absolute;right:12px;top:50%;transform:translateY(-50%);font-size:24px;opacity:0.08;}
- 
+
 /* TABS */
 .tabs{display:flex;gap:2px;padding:0 28px;}
 .tab{display:flex;align-items:center;gap:7px;padding:9px 16px;border-radius:var(--r-sm) var(--r-sm) 0 0;border:1px solid transparent;border-bottom:none;font-size:13px;font-weight:500;font-family:var(--font);cursor:pointer;color:var(--text3);background:transparent;transition:all var(--tr);position:relative;bottom:-1px;}
 .tab:hover{color:var(--text2);}
 .tab.active{background:var(--bg2);border-color:var(--border);color:var(--text);font-weight:600;}
- 
+
 /* CONTENT */
 .content{flex:1;overflow-y:auto;background:var(--bg2);border-top:1px solid var(--border);padding:24px 28px;}
- 
+
 /* TABLE */
 .tw{background:var(--bg3);border:1px solid var(--border);border-radius:var(--r);overflow:hidden;}
 .htable{width:100%;border-collapse:collapse;}
@@ -123,7 +122,7 @@ body{font-family:var(--font);background:var(--bg);color:var(--text);font-size:14
 .prog-bar{flex:1;height:4px;background:var(--bg5);border-radius:99px;overflow:hidden;}
 .prog-fill{height:100%;border-radius:99px;transition:width 0.5s ease;}
 .prog-pct{font-size:11px;font-weight:600;color:var(--text3);min-width:26px;text-align:right;}
- 
+
 /* MONTH TABLE */
 .mt-scroll{overflow-x:auto;}
 .mt{border-collapse:collapse;min-width:600px;width:100%;}
@@ -137,8 +136,55 @@ body{font-family:var(--font);background:var(--bg);color:var(--text);font-size:14
 .mchk:hover:not(.done):not(.fut){border-color:var(--green);background:rgba(62,207,142,0.1);}
 .mchk.missed{background:rgba(240,94,94,0.08);border-color:rgba(240,94,94,0.2);}
 .mchk.fut{opacity:0.18;cursor:not-allowed;}
- 
-/* OVERVIEW */
+
+/* OVERVIEW & HEATMAP */
+.hm-wrapper{background:var(--bg3);border:1px solid var(--border);border-radius:var(--r);padding:20px;margin-bottom:20px;}
+.hm-head{display:flex;justify-content:space-between;align-items:center;margin-bottom:14px;}
+.hm-title{font-size:13px;font-weight:600;}
+.hm-grid{display:grid;grid-template-rows:repeat(7,13px);grid-auto-flow:column;gap:4px;overflow-x:auto;padding-bottom:10px; position:relative;}
+.hm-cell{width:13px;height:13px;border-radius:2px;background:var(--bg4);transition:all var(--tr); position:relative;}
+.hm-cell:hover{transform:scale(1.2);outline:1px solid var(--border2); z-index:5;}
+.hm-l1{background:#0e4429;}
+.hm-l2{background:#006d32;}
+.hm-l3{background:#26a641;}
+.hm-l4{background:#39d353;}
+
+/* NEW: Strict Max Streak Glow */
+.hm-streak-glow { 
+  outline: 2px solid var(--accent) !important; 
+  box-shadow: 0 0 10px rgba(224, 123, 57, 0.8) !important; 
+  z-index: 10 !important; 
+  transform: scale(1.25) !important;
+  border-radius: 3px;
+}
+
+/* BADGES */
+.badges-grid { display:flex; gap:16px; flex-wrap:wrap; }
+.badge { display:flex; flex-direction:column; align-items:center; gap:6px; width:90px; text-align:center; transition:all var(--tr); cursor:default; }
+.badge:hover { transform:translateY(-2px); }
+.badge-icon { width:52px; height:52px; border-radius:50%; display:flex; align-items:center; justify-content:center; font-size:26px; background:var(--bg4); border:2px solid var(--border2); color:var(--text3); position:relative; overflow:hidden;}
+.badge.unlocked .badge-icon::after { content:''; position:absolute; top:-50%; left:-50%; width:200%; height:200%; background:linear-gradient(45deg, transparent, rgba(255,255,255,0.15), transparent); transform:rotate(45deg); animation:shine 3.5s infinite;}
+@keyframes shine { 0% {left:-100%;} 20% {left:100%;} 100% {left:100%;} }
+.badge.unlocked.b-level .badge-icon { border-color:var(--blue); background:rgba(78,142,247,0.1); box-shadow:0 0 14px rgba(78,142,247,0.25); }
+.badge.unlocked.b-streak .badge-icon { border-color:var(--red); background:rgba(240,94,94,0.1); box-shadow:0 0 14px rgba(240,94,94,0.25); }
+.badge.unlocked.b-xp .badge-icon { border-color:var(--green); background:rgba(62,207,142,0.1); box-shadow:0 0 14px rgba(62,207,142,0.25); }
+.badge-name { font-size:11px; font-weight:700; color:var(--text3); line-height:1.2; transition:all var(--tr); }
+.badge.unlocked .badge-name { color:var(--text); }
+.badge-desc { font-size:9px; color:var(--text3); opacity:0.7; }
+
+/* INSIGHT ENGINE */
+.insight-card { background: linear-gradient(145deg, var(--bg3), var(--bg4)); border: 1px solid var(--border); border-left: 3px solid var(--accent); border-radius: var(--r); padding: 18px; margin-bottom: 20px; display: flex; gap: 14px; align-items: center; box-shadow: var(--sh); }
+.insight-icon { font-size: 26px; background: rgba(224,123,57,0.15); width: 44px; height: 44px; border-radius: 50%; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+.insight-text { font-size: 14px; color: var(--text2); line-height: 1.4; }
+.insight-text span { color: var(--text); font-weight: 700; padding: 0 4px; }
+.insight-tag { display: inline-block; background: var(--bg5); padding: 2px 8px; border-radius: 99px; font-size: 10px; font-weight: 700; color: var(--accent); text-transform: uppercase; margin-bottom: 4px; letter-spacing: 0.05em; }
+
+/* CATEGORY TAGS */
+.cat-wrap { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 6px; }
+.cat-btn { padding: 6px 12px; border-radius: 12px; font-size: 11px; font-weight: 600; cursor: pointer; border: 1px solid var(--border2); background: transparent; color: var(--text3); transition: all var(--tr); }
+.cat-btn:hover { border-color: var(--border); color: var(--text2); }
+.cat-btn.sel { background: var(--bg4); color: var(--text); border-color: var(--accent); box-shadow: 0 0 8px var(--accent-glow); }
+
 .ov-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(190px,1fr));gap:12px;}
 .mc{background:var(--bg3);border:1px solid var(--border);border-radius:var(--r);padding:16px;cursor:pointer;transition:all var(--tr);position:relative;overflow:hidden;}
 .mc:hover{border-color:var(--border2);transform:translateY(-2px);}
@@ -148,14 +194,14 @@ body{font-family:var(--font);background:var(--bg);color:var(--text);font-size:14
 .mc.curr .mc-pct{color:var(--accent);}
 .mc-tag{position:absolute;top:10px;right:10px;background:var(--accent);color:white;font-size:8px;font-weight:800;padding:2px 7px;border-radius:99px;text-transform:uppercase;letter-spacing:0.06em;}
 .mc-emj{margin-top:8px;font-size:13px;display:flex;flex-wrap:wrap;gap:3px;}
- 
+
 /* ANALYTICS */
 .ch-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:14px;}
 .ch-card{background:var(--bg3);border:1px solid var(--border);border-radius:var(--r);padding:18px;}
 .ch-head{display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;}
 .ch-title{font-size:13px;font-weight:600;}
 .ch-wrap{height:200px;position:relative;}
- 
+
 /* AUTH */
 .auth-bg{min-height:100vh;display:flex;align-items:center;justify-content:center;background:var(--bg);position:relative;overflow:hidden;}
 .auth-bg::before{content:'';position:absolute;inset:0;background:radial-gradient(ellipse 60% 50% at 50% 0%,rgba(224,123,57,0.07) 0%,transparent 70%);pointer-events:none;}
@@ -182,7 +228,7 @@ body{font-family:var(--font);background:var(--bg);color:var(--text);font-size:14
 .auth-err{background:var(--red-dim);border:1px solid var(--red);color:var(--red);padding:10px 13px;border-radius:var(--r-sm);font-size:12px;margin-bottom:14px;}
 .demo-btn{width:100%;padding:10px;background:transparent;border:1px dashed var(--border2);border-radius:var(--r-sm);color:var(--text3);font-family:var(--font);font-size:12.5px;font-weight:500;cursor:pointer;transition:all var(--tr);margin-top:10px;}
 .demo-btn:hover{color:var(--text2);background:var(--bg4);}
- 
+
 /* MODAL */
 .ov{position:fixed;inset:0;background:rgba(0,0,0,0.7);display:flex;align-items:center;justify-content:center;z-index:1000;backdrop-filter:blur(6px);padding:20px;animation:fi2 0.15s ease;}
 @keyframes fi2{from{opacity:0;}to{opacity:1;}}
@@ -200,7 +246,7 @@ body{font-family:var(--font);background:var(--bg);color:var(--text);font-size:14
 .co-wrap{display:flex;flex-wrap:wrap;gap:6px;}
 .co{width:24px;height:24px;border-radius:50%;cursor:pointer;border:2px solid transparent;transition:all var(--tr);}
 .co.sel,.co:hover{border-color:var(--text);transform:scale(1.15);}
- 
+
 /* BUTTONS */
 .btn{display:inline-flex;align-items:center;gap:6px;padding:7px 14px;border-radius:var(--r-sm);font-family:var(--font);font-size:13px;font-weight:500;cursor:pointer;border:none;transition:all var(--tr);}
 .bp{background:var(--accent);color:white;}
@@ -245,25 +291,41 @@ const BCOLORS=['rgba(224,123,57,0.13)','rgba(62,207,142,0.1)','rgba(78,142,247,0
 const LEVELS=['Seedling','Sprout','Sapling','Grower','Bloomer','Achiever','Master','Legend'];
 const LXPS=[0,100,300,600,1200,2500,5000,10000];
 
-// Improvised default habits to match a balanced daily routine
+// Categories for Radar Chart mapping
+const CATS = ['Health', 'Tech', 'Learning', 'Lifestyle', 'Other'];
+
 const DEF_HABITS=[
-  {id:'d1',name:'WORKOUT',emoji:'💪',goal:'Daily routine',color:'#e07b39'},
-  {id:'d2',name:'CODING',emoji:'💻',goal:'>3 HOURS',color:'#4e8ef7'},
-  {id:'d3',name:'ACADEMICS',emoji:'📚',goal:'>3 HOURS',color:'#3ecf8e'},
-  {id:'d4',name:'SKILLS',emoji:'🎯',goal:'1 HOUR',color:'#a78bfa'},
-  {id:'d5',name:'WAKE UP',emoji:'😴',goal:'6 OR 7',color:'#f59e0b'},
-  {id:'d6',name:'WATER',emoji:'💧',goal:'3 BOTTLES',color:'#4e8ef7'},
+  {id:'d1',name:'WORKOUT',emoji:'💪',goal:'Daily routine',color:'#e07b39', category: 'Health'},
+  {id:'d2',name:'CODING',emoji:'💻',goal:'>3 HOURS',color:'#4e8ef7', category: 'Tech'},
+  {id:'d3',name:'ACADEMICS',emoji:'📚',goal:'>3 HOURS',color:'#3ecf8e', category: 'Learning'},
+  {id:'d4',name:'SKILLS',emoji:'🎯',goal:'1 HOUR',color:'#a78bfa', category: 'Tech'},
+  {id:'d5',name:'WAKE UP',emoji:'😴',goal:'6 OR 7',color:'#f59e0b', category: 'Lifestyle'},
+  {id:'d6',name:'WATER',emoji:'💧',goal:'3 BOTTLES',color:'#4e8ef7', category: 'Health'},
 ];
 
 const todayStr=()=>{const d=new Date();return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;};
 const dIM=(y,m)=>new Date(y,m+1,0).getDate();
 const getWD=(off=0)=>{const now=new Date();const mon=new Date(now);mon.setDate(now.getDate()-((now.getDay()+6)%7)+off*7);return Array.from({length:7},(_,i)=>{const d=new Date(mon);d.setDate(mon.getDate()+i);return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;});};
 const getMD=(y,m)=>Array.from({length:dIM(y,m)},(_,i)=>`${y}-${String(m+1).padStart(2,'0')}-${String(i+1).padStart(2,'0')}`);
+
+// Calculates a full chronological year of dates (364 days)
+const getYearDates = () => {
+  const dates = [];
+  const d = new Date();
+  d.setDate(d.getDate() - 364);
+  while (d.getDay() !== 0) d.setDate(d.getDate() - 1);
+  const end = new Date();
+  while (d <= end) {
+    dates.push(`${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`);
+    d.setDate(d.getDate() + 1);
+  }
+  return dates;
+};
+
 const cPct=(dates,habits,logs)=>{const t=dates.length*habits.length;if(!t)return 0;return Math.round(dates.reduce((s,d)=>s+habits.reduce((h,hb)=>h+(logs[d]?.[hb.id]?1:0),0),0)/t*100);};
 const gStreak=(hid,logs)=>{const s=Object.keys(logs).sort().reverse();const td=todayStr();let cur=0,best=0,streak=0;for(let i=0;i<s.length;i++){if(logs[s[i]]?.[hid]){cur++;if(i===0||(i===1&&s[0]===td))streak=cur;best=Math.max(best,cur);}else{if(streak===0&&cur>0)streak=cur;cur=0;}}return{current:streak,best};};
 const gXP=logs=>Object.values(logs).reduce((s,d)=>s+Object.values(d).filter(Boolean).length,0)*10;
 const gLevel=xp=>{let l=0;for(let i=0;i<LXPS.length;i++)if(xp>=LXPS[i])l=i;return l;};
-const LS={get:(k,d)=>{try{const v=localStorage.getItem(k);return v?JSON.parse(v):d;}catch{return d;}},set:(k,v)=>{try{localStorage.setItem(k,JSON.stringify(v));}catch{}}};
  
 const GIcon=()=><svg className="g-icon" viewBox="0 0 24 24"><path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" fill="#4285F4"/><path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" fill="#34A853"/><path d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z" fill="#FBBC05"/><path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" fill="#EA4335"/></svg>;
  
@@ -276,17 +338,10 @@ function Auth({onAuth}){
   const [loading,setLoading]=useState(false);
   const [err,setErr]=useState('');
   
-  // --- IMPROVED OAUTH LOGIC ---
   const gLogin=async()=>{
     if(!sb){onAuth({id:'demo',email:'demo@habits.app',demo:true});return;}
     try{
-      const {error}=await sb.auth.signInWithOAuth({
-        provider:'google',
-        options:{
-          // Ensures user is redirected back to exact URL they launched from
-          redirectTo: window.location.origin + window.location.pathname
-        }
-      });
+      const {error}=await sb.auth.signInWithOAuth({ provider:'google', options:{ redirectTo: window.location.origin + window.location.pathname } });
       if(error)throw error;
     }catch(e){setErr(e.message);}
   };
@@ -328,6 +383,8 @@ function HabitModal({habit,onSave,onClose}){
   const [emoji,setEmoji]=useState(habit?.emoji||'🎯');
   const [goal,setGoal]=useState(habit?.goal||'');
   const [color,setColor]=useState(habit?.color||COLORS[0]);
+  const [category, setCategory]=useState(habit?.category||'Other');
+  
   return(
     <div className="ov" onClick={e=>e.target.className==='ov'&&onClose()}>
       <div className="modal">
@@ -335,12 +392,22 @@ function HabitModal({habit,onSave,onClose}){
         <div className="mb">
           <div className="fg"><label className="fl">Name</label><input className="fi" value={name} onChange={e=>setName(e.target.value)} placeholder="e.g. Morning Run" autoFocus/></div>
           <div className="fg"><label className="fl">Goal</label><input className="fi" value={goal} onChange={e=>setGoal(e.target.value)} placeholder="e.g. 30 min daily"/></div>
+          
+          <div className="fg">
+            <label className="fl">Category</label>
+            <div className="cat-wrap">
+              {CATS.map(c => (
+                <button key={c} className={`cat-btn ${category === c ? 'sel' : ''}`} onClick={() => setCategory(c)}>{c}</button>
+              ))}
+            </div>
+          </div>
+
           <div className="fg"><label className="fl">Icon</label><div className="eg">{EMOJIS.map(e=><button key={e} className={`eo${emoji===e?' sel':''}`} onClick={()=>setEmoji(e)}>{e}</button>)}</div></div>
           <div className="fg"><label className="fl">Color</label><div className="co-wrap">{COLORS.map(c=><div key={c} className={`co${color===c?' sel':''}`} style={{background:c}} onClick={()=>setColor(c)}/>)}</div></div>
         </div>
         <div className="mf">
           <button className="btn bs bsm" onClick={onClose}>Cancel</button>
-          <button className="btn bp bsm" onClick={()=>name&&onSave({id:habit?.id||'h'+Date.now(),name:name.toUpperCase(),emoji,goal,color})} disabled={!name.trim()}>{habit?'Save':'Add Habit'}</button>
+          <button className="btn bp bsm" onClick={()=>name&&onSave({id:habit?.id||'h'+Date.now(),name:name.toUpperCase(),emoji,goal,color,category})} disabled={!name.trim()}>{habit?'Save':'Add Habit'}</button>
         </div>
       </div>
     </div>
@@ -435,52 +502,213 @@ function MonthView({habits,logs,onToggle,selM,setSelM}){
     </div>
   );
 }
+
+// Accepts the perfectly calculated global streak dates array
+function Heatmap({habits, logs, maxDates}) {
+  const dates = getYearDates();
+  const totalHabits = habits.length;
+  const [showMaxStreak, setShowMaxStreak] = useState(false);
+
+  return (
+    <div className="hm-wrapper">
+      <div className="hm-head">
+        <div className="hm-title">🔥 365 Day Consistency</div>
+        <div style={{display: 'flex', gap: 12, alignItems: 'center'}}>
+          <button className={`btn bsm ${showMaxStreak ? 'bp' : 'bs'}`} onClick={() => setShowMaxStreak(!showMaxStreak)}>
+            {showMaxStreak ? 'Hide Max Streak' : '✨ Highlight Max Streak'}
+          </button>
+          <div style={{fontSize: 10, color: 'var(--text3)', display: 'flex', gap: 4, alignItems: 'center'}}>
+            Less 
+            <div className="hm-cell" style={{margin:'0 2px'}}/>
+            <div className="hm-cell hm-l1"/>
+            <div className="hm-cell hm-l2"/>
+            <div className="hm-cell hm-l3"/>
+            <div className="hm-cell hm-l4"/> 
+            More
+          </div>
+        </div>
+      </div>
+      <div className="hm-grid">
+        {dates.map(date => {
+          const done = habits.filter(h => logs[date]?.[h.id]).length;
+          let level = 0;
+          
+          if (totalHabits > 0 && done > 0) {
+            const pct = done / totalHabits;
+            if (pct >= 0.9) level = 4;
+            else if (pct >= 0.6) level = 3;
+            else if (pct >= 0.3) level = 2;
+            else level = 1;
+          }
+
+          const isFuture = new Date(date) > new Date();
+          // Glow condition tied strictly to the global algorithm
+          const isStreakPart = showMaxStreak && maxDates.has(date);
+
+          return (
+            <div 
+              key={date} 
+              className={`hm-cell ${level > 0 && !isFuture ? 'hm-l'+level : ''} ${isStreakPart ? 'hm-streak-glow' : ''}`}
+              title={isFuture ? '' : `${date}: ${done}/${totalHabits} habits completed`}
+              style={isFuture ? { opacity: 0 } : {}}
+            />
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
+function Badges({ level, xp, bestStreak }) {
+  const ALL_BADGES = [
+    { id: 'b1', name: 'First Step', icon: '🌱', desc: 'Reach Level 1', type: 'b-level', unlocked: level >= 1 },
+    { id: 'b2', name: 'Habit Builder', icon: '🛠️', desc: 'Reach Level 3', type: 'b-level', unlocked: level >= 3 },
+    { id: 'b3', name: 'Unstoppable', icon: '⭐', desc: 'Reach Level 5', type: 'b-level', unlocked: level >= 5 },
+    { id: 'b4', name: 'On Fire', icon: '🔥', desc: '7 Day Streak', type: 'b-streak', unlocked: bestStreak >= 7 },
+    { id: 'b5', name: 'Relentless', icon: '🌋', desc: '30 Day Streak', type: 'b-streak', unlocked: bestStreak >= 30 },
+    { id: 'b6', name: 'XP Hunter', icon: '💎', desc: '1,000 XP', type: 'b-xp', unlocked: xp >= 1000 },
+  ];
+  const unlockedCount = ALL_BADGES.filter(b => b.unlocked).length;
+
+  return (
+    <div className="hm-wrapper">
+      <div className="hm-head">
+        <div className="hm-title">🏅 Badges ({unlockedCount}/{ALL_BADGES.length})</div>
+      </div>
+      <div className="badges-grid">
+        {ALL_BADGES.map(b => (
+          <div key={b.id} className={`badge ${b.unlocked ? 'unlocked ' + b.type : ''}`} title={b.unlocked ? `Unlocked! ${b.desc}` : `Locked: ${b.desc}`}>
+            <div className="badge-icon" style={!b.unlocked ? { filter: 'grayscale(100%) opacity(0.15)' } : {}}>{b.icon}</div>
+            <div className="badge-name">{b.name}</div>
+            <div className="badge-desc">{b.desc}</div>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
  
-function OverView({habits,logs,onSel}){
+// Receives the new Global Streak Data explicitly
+function OverView({habits,logs,onSel, level, xp, globalStreakData}){
   const now=new Date();const y=now.getFullYear();
   return(
-    <div className="ov-grid">
-      {MONTHS.map((m,i)=>{
-        const dates=getMD(y,i);const pct=cPct(dates,habits,logs);const isCurr=i===now.getMonth();const isFut=i>now.getMonth();
-        return(
-          <div key={m} className={`mc${isCurr?' curr':''}`} onClick={()=>!isFut&&onSel(i)} style={isFut?{opacity:0.3}:{}}>
-            {isCurr&&<div className="mc-tag">Current</div>}
-            <div className="mc-lbl">{m}</div>
-            <div className="mc-pct">{isFut?'—':pct+'%'}</div>
-            <div className="prog-bar"><div className="prog-fill" style={{width:(isFut?0:pct)+'%',background:'linear-gradient(90deg,var(--accent),var(--green))'}}/></div>
-            {!isFut&&<div className="mc-emj">{habits.map(h=><span key={h.id} title={h.name}>{h.emoji}</span>)}</div>}
-          </div>
-        );
-      })}
+    <div>
+      <Badges level={level} xp={xp} bestStreak={globalStreakData.best} />
+      <Heatmap habits={habits} logs={logs} maxDates={globalStreakData.maxDates} />
+      <div className="ov-grid">
+        {MONTHS.map((m,i)=>{
+          const dates=getMD(y,i);const pct=cPct(dates,habits,logs);const isCurr=i===now.getMonth();const isFut=i>now.getMonth();
+          return(
+            <div key={m} className={`mc${isCurr?' curr':''}`} onClick={()=>!isFut&&onSel(i)} style={isFut?{opacity:0.3}:{}}>
+              {isCurr&&<div className="mc-tag">Current</div>}
+              <div className="mc-lbl">{m}</div>
+              <div className="mc-pct">{isFut?'—':pct+'%'}</div>
+              <div className="prog-bar"><div className="prog-fill" style={{width:(isFut?0:pct)+'%',background:'linear-gradient(90deg,var(--accent),var(--green))'}}/></div>
+              {!isFut&&<div className="mc-emj">{habits.map(h=><span key={h.id} title={h.name}>{h.emoji}</span>)}</div>}
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
+function InsightEngine({ habits, logs }) {
+  const [insight, setInsight] = useState("Log more habits to generate advanced data correlations.");
+
+  useEffect(() => {
+    let maxCorr = 0;
+    let bestPair = null;
+
+    for (let i = 0; i < habits.length; i++) {
+      for (let j = 0; j < habits.length; j++) {
+        if (i === j) continue;
+        let h1 = habits[i];
+        let h2 = habits[j];
+        
+        let count1 = 0;
+        let countBoth = 0;
+
+        Object.keys(logs).forEach(date => {
+          if (logs[date]?.[h1.id]) {
+            count1++;
+            if (logs[date]?.[h2.id]) countBoth++;
+          }
+        });
+
+        if (count1 > 2) {
+          let correlation = countBoth / count1;
+          if (correlation > maxCorr) {
+            maxCorr = correlation;
+            bestPair = { h1, h2, pct: Math.round(correlation * 100) };
+          }
+        }
+      }
+    }
+
+    if (bestPair && bestPair.pct >= 50) {
+      setInsight(
+        <>
+          <div className="insight-tag">Data Insight</div><br/>
+          When you complete <span>{bestPair.h1.emoji} {bestPair.h1.name}</span>, you are <span>{bestPair.pct}%</span> likely to also complete <span>{bestPair.h2.emoji} {bestPair.h2.name}</span>.
+        </>
+      );
+    }
+  }, [habits, logs]);
+
+  return (
+    <div className="insight-card">
+      <div className="insight-icon">🧠</div>
+      <div className="insight-text">{insight}</div>
     </div>
   );
 }
  
 function Analytics({habits,logs}){
-  const lRef=useRef();const bRef=useRef();const pRef=useRef();const charts=useRef({});
+  const lRef=useRef();const bRef=useRef();const rRef=useRef();const charts=useRef({});
   const [period,setPeriod]=useState('week');
+  
   useEffect(()=>{
     const dates=period==='week'?getWD(0):getMD(new Date().getFullYear(),new Date().getMonth());
     const labels=dates.map(d=>{const dt=new Date(d+'T00:00:00');return dt.toLocaleDateString('en',{month:'short',day:'numeric'});});
     const ld=dates.map(d=>{const done=habits.filter(h=>logs[d]?.[h.id]).length;return habits.length?Math.round(done/habits.length*100):0;});
     const bd=habits.map(h=>dates.filter(d=>logs[d]?.[h.id]).length);
-    const pd=habits.map(h=>dates.filter(d=>logs[d]?.[h.id]).length);
+    
+    const catData = {};
+    const catTotals = {};
+    habits.forEach(h => {
+      const cat = h.category || 'Other';
+      if (!catData[cat]) { catData[cat] = 0; catTotals[cat] = 0; }
+      dates.forEach(d => {
+        catTotals[cat]++;
+        if (logs[d]?.[h.id]) catData[cat]++;
+      });
+    });
+    
+    const rLabels = Object.keys(catData);
+    const rData = rLabels.map(c => catTotals[c] > 0 ? Math.round((catData[c]/catTotals[c])*100) : 0);
+
     Object.values(charts.current).forEach(c=>c?.destroy());charts.current={};
     const tc='#5e5d72';const gc='#2e2e34';
+
     if(lRef.current)charts.current.l=new Chart(lRef.current,{type:'line',data:{labels,datasets:[{label:'%',data:ld,borderColor:'#e07b39',backgroundColor:'rgba(224,123,57,0.07)',tension:0.4,fill:true,pointBackgroundColor:'#e07b39',pointRadius:4,borderWidth:2}]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},scales:{y:{min:0,max:100,ticks:{color:tc,callback:v=>v+'%'},grid:{color:gc},border:{display:false}},x:{ticks:{color:tc},grid:{display:false},border:{display:false}}}}});
     if(bRef.current)charts.current.b=new Chart(bRef.current,{type:'bar',data:{labels:habits.map(h=>h.emoji),datasets:[{data:bd,backgroundColor:habits.map(h=>h.color+'bb'),borderColor:habits.map(h=>h.color),borderWidth:1,borderRadius:6}]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},scales:{y:{ticks:{color:tc},grid:{color:gc},border:{display:false}},x:{ticks:{color:tc,font:{size:16}},grid:{display:false},border:{display:false}}}}});
-    if(pRef.current&&habits.length>0)charts.current.p=new Chart(pRef.current,{type:'doughnut',data:{labels:habits.map(h=>h.emoji+' '+h.name),datasets:[{data:pd,backgroundColor:habits.map(h=>h.color+'bb'),borderColor:habits.map(h=>h.color),borderWidth:1.5}]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{position:'bottom',labels:{color:tc,font:{size:11},boxWidth:10}}}}});
+    if(rRef.current && rLabels.length > 0)charts.current.r=new Chart(rRef.current,{type:'radar',data:{labels:rLabels,datasets:[{label:'Category Balance %',data:rData,backgroundColor:'rgba(62,207,142,0.15)',borderColor:'#3ecf8e',borderWidth:2,pointBackgroundColor:'#3ecf8e',pointRadius:3}]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},scales:{r:{min:0,max:100,ticks:{display:false},grid:{color:'rgba(255,255,255,0.05)'},angleLines:{color:'rgba(255,255,255,0.05)'},pointLabels:{color:tc,font:{size:11,weight:600}}}}}});
+    
     return()=>Object.values(charts.current).forEach(c=>c?.destroy());
   },[habits,logs,period]);
+
   return(
     <div>
+      <InsightEngine habits={habits} logs={logs} />
+      
       <div style={{display:'flex',gap:8,marginBottom:16}}>
         {['week','month'].map(p=><button key={p} className={`btn bsm ${period===p?'bp':'bs'}`} onClick={()=>setPeriod(p)}>{p==='week'?'This Week':'This Month'}</button>)}
       </div>
       <div className="ch-grid">
         <div className="ch-card"><div className="ch-head"><div className="ch-title">📈 Consistency Over Time</div></div><div className="ch-wrap"><canvas ref={lRef}/></div></div>
+        <div className="ch-card"><div className="ch-head"><div className="ch-title">🕸️ Life Balance Radar</div></div><div className="ch-wrap"><canvas ref={rRef}/></div></div>
         <div className="ch-card"><div className="ch-head"><div className="ch-title">📊 Per Habit</div></div><div className="ch-wrap"><canvas ref={bRef}/></div></div>
-        <div className="ch-card"><div className="ch-head"><div className="ch-title">🥧 Distribution</div></div><div className="ch-wrap"><canvas ref={pRef}/></div></div>
       </div>
     </div>
   );
@@ -492,7 +720,6 @@ function App(){
   const [habits,setHabits]=useState(DEF_HABITS);
   const [logs,setLogs]=useState({});
   
-  // This is the lock! It prevents saving until downloading is done.
   const [dataLoaded,setDataLoaded]=useState(false); 
   
   const [tab,setTab]=useState('week');
@@ -529,20 +756,14 @@ function App(){
       const { data, error } = await sb.from('user_data').select('habits, logs').eq('user_id', user.id).single();
       
       if (data) {
-        // Force the app to use EXACTLY what is in the database
         setHabits(data.habits || []);
         setLogs(data.logs || {});
-        setDataLoaded(true); // Unlock saving!
+        setDataLoaded(true); 
       } else if (error && error.code === 'PGRST116') {
-        // Brand new user
-        await sb.from('user_data').insert({ 
-          user_id: user.id, 
-          habits: DEF_HABITS, 
-          logs: {} 
-        });
+        await sb.from('user_data').insert({ user_id: user.id, habits: DEF_HABITS, logs: {} });
         setHabits(DEF_HABITS);
         setLogs({});
-        setDataLoaded(true); // Unlock saving!
+        setDataLoaded(true); 
       } else {
         console.error("Database Error:", error);
       }
@@ -551,32 +772,19 @@ function App(){
     fetchCloudData();
   }, [user]);
 
-  // --- 3. BULLETPROOF SAVE (UPSERT) ---
+  // --- 3. BULLETPROOF SAVE ---
   useEffect(()=>{
-    // If the data hasn't finished loading from the cloud, DO NOT SAVE!
     if(!user || !sb || !dataLoaded) return;
 
     const saveToCloud = async () => {
-      // Upsert guarantees the data is saved whether the row is new or old
-      const { error } = await sb.from('user_data').upsert({ 
-        user_id: user.id,
-        habits: habits, 
-        logs: logs, 
-        updated_at: new Date().toISOString() 
-      });
-      
-      if (error) {
-        console.error("Failed to save:", error);
-        addToast('Error saving to cloud', '❌');
-      }
+      const { error } = await sb.from('user_data').upsert({ user_id: user.id, habits: habits, logs: logs, updated_at: new Date().toISOString() });
+      if (error) { console.error("Failed to save:", error); addToast('Error saving to cloud', '❌'); }
     };
 
     const timeout = setTimeout(saveToCloud, 500);
     return () => clearTimeout(timeout);
   }, [habits, logs, user, dataLoaded]);
 
-
-  // Helper functions for UI
   const addToast=useCallback((msg,icon='✅')=>{const id=Date.now();setToasts(t=>[...t,{id,msg,icon}]);setTimeout(()=>setToasts(t=>t.filter(x=>x.id!==id)),3000);},[]);
   const toggleLog=useCallback((date,hid)=>setLogs(prev=>({...prev,[date]:{...(prev[date]||{}),[hid]:!(prev[date]?.[hid])}})),[]);
   
@@ -603,8 +811,51 @@ function App(){
   const weekPct=cPct(wDates,habits,logs);
   const todayDone=habits.filter(h=>logs[today]?.[h.id]).length;
   const todayPct=habits.length?Math.round(todayDone/habits.length*100):0;
-  const bestStreak=Math.max(0,...habits.map(h=>gStreak(h.id,logs).current));
-  const xp=gXP(logs);const level=gLevel(xp);const nextXp=LXPS[Math.min(level+1,LXPS.length-1)];const xpPct=Math.round(xp/nextXp*100);
+  
+  // ==========================================
+  // NEW GLOBAL STREAK LOGIC (N OR N-1 HABITS)
+  // ==========================================
+  const globalStreakData = React.useMemo(() => {
+    const dates = getYearDates();
+    const total = habits.length;
+    if (total === 0) return { current: 0, best: 0, maxDates: new Set() };
+    
+    // Strict threshold: Must complete n or n-1 habits
+    const threshold = Math.max(1, total - 1); 
+    
+    let current = 0;
+    let best = 0;
+    let tempDates = [];
+    let maxDates = [];
+    const td = todayStr();
+
+    dates.forEach(d => {
+      if (d > td) return;
+      const done = habits.filter(h => logs[d]?.[h.id]).length;
+      
+      if (done >= threshold) {
+        current++;
+        tempDates.push(d);
+        if (current > best) {
+          best = current;
+          maxDates = [...tempDates];
+        }
+      } else {
+        // If today is a failure, we don't snap the current streak down to 0 yet (give the user time to finish the day)
+        if (d !== td) {
+          current = 0;
+          tempDates = [];
+        }
+      }
+    });
+    return { current, best, maxDates: new Set(maxDates) };
+  }, [habits, logs]);
+  
+  const xp=gXP(logs);
+  const level=gLevel(xp);
+  
+  const nextXp=LXPS[Math.min(level+1,LXPS.length-1)];
+  const xpPct=Math.round(xp/nextXp*100);
   const TABS=[{id:'week',icon:'📅',label:'This Week'},{id:'month',icon:'📆',label:'This Month'},{id:'overview',icon:'⊞',label:'Overview'},{id:'analytics',icon:'📊',label:'Analytics'}];
  
   if(!user)return<><Auth onAuth={u=>{setUser(u);addToast('Welcome! 🎉','✦');}}/><Toasts ts={toasts}/></>;
@@ -659,7 +910,10 @@ function App(){
           <div className="stats-row">
             <div className="stat-card"><div className="stat-top" style={{background:'var(--blue)'}}/><div className="stat-value">{habits.length}</div><div className="stat-label">Active Habits</div><div className="stat-icon-bg">✦</div></div>
             <div className="stat-card"><div className="stat-top" style={{background:'var(--green)'}}/><div className="stat-value">{weekPct}%</div><div className="stat-label">Week Average</div><div className="stat-icon-bg">📊</div></div>
-            <div className="stat-card"><div className="stat-top" style={{background:'var(--accent)'}}/><div className="stat-value" style={{color:'var(--accent)'}}>🔥 {bestStreak}</div><div className="stat-label">Best Streak</div></div>
+            
+            {/* UPDATED: Displays Global Streak using strict N or N-1 logic */}
+            <div className="stat-card"><div className="stat-top" style={{background:'var(--accent)'}}/><div className="stat-value" style={{color:'var(--accent)'}}>🔥 {globalStreakData.current}</div><div className="stat-label">Day Streak <span style={{textTransform:'none', opacity:0.7, fontWeight:500, marginLeft: 4}}>(Best: {globalStreakData.best})</span></div></div>
+            
             <div className="stat-card"><div className="stat-top"/><div className="stat-value">{todayPct}%</div><div className="stat-label">Today</div><div className="stat-icon-bg">📅</div></div>
           </div>
           <div className="tabs">
@@ -669,7 +923,10 @@ function App(){
         <div className="content">
           {tab==='week'&&<WeekView habits={habits} logs={logs} onToggle={toggleLog} wOff={wOff} setWOff={setWOff} onAdd={()=>setModal({mode:'add'})} onEdit={h=>setModal({mode:'edit',habit:h})} onDel={delHabit}/>}
           {tab==='month'&&<MonthView habits={habits} logs={logs} onToggle={toggleLog} selM={selM} setSelM={setSelM}/>}
-          {tab==='overview'&&<OverView habits={habits} logs={logs} onSel={m=>{setSelM(m);setTab('month');}}/>}
+          
+          {/* Passed strict streak data to Badges and Heatmap */}
+          {tab==='overview'&&<OverView habits={habits} logs={logs} onSel={m=>{setSelM(m);setTab('month');}} level={level} xp={xp} globalStreakData={globalStreakData}/>}
+          
           {tab==='analytics'&&<Analytics habits={habits} logs={logs}/>}
         </div>
       </main>
