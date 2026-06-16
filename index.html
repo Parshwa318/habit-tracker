@@ -290,7 +290,6 @@ const BCOLORS=['rgba(224,123,57,0.13)','rgba(62,207,142,0.1)','rgba(78,142,247,0
 const LEVELS=['Seedling','Sprout','Sapling','Grower','Bloomer','Achiever','Master','Legend'];
 const LXPS=[0,100,300,600,1200,2500,5000,10000];
 
-// Categories for Radar Chart mapping
 const CATS = ['Health', 'Tech', 'Learning', 'Lifestyle', 'Other'];
 
 const DEF_HABITS=[
@@ -307,7 +306,6 @@ const dIM=(y,m)=>new Date(y,m+1,0).getDate();
 const getWD=(off=0)=>{const now=new Date();const mon=new Date(now);mon.setDate(now.getDate()-((now.getDay()+6)%7)+off*7);return Array.from({length:7},(_,i)=>{const d=new Date(mon);d.setDate(mon.getDate()+i);return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;});};
 const getMD=(y,m)=>Array.from({length:dIM(y,m)},(_,i)=>`${y}-${String(m+1).padStart(2,'0')}-${String(i+1).padStart(2,'0')}`);
 
-// Calculates a full chronological year of dates (364 days)
 const getYearDates = () => {
   const dates = [];
   const d = new Date();
@@ -372,6 +370,79 @@ function Auth({onAuth}){
         <button className="sub-btn" onClick={eLogin} disabled={loading}>{loading?'Please wait…':mode==='login'?'Sign In →':'Create Account →'}</button>
         <button className="demo-btn" onClick={()=>onAuth({id:'demo',email:'demo@habits.app',demo:true})}>⚡ Try Demo — no account needed</button>
         <div className="auth-sw">{mode==='login'?<>No account? <button onClick={()=>setMode('signup')}>Sign up free</button></>:<>Have one? <button onClick={()=>setMode('login')}>Sign in</button></>}</div>
+      </div>
+    </div>
+  );
+}
+
+// --- NEW MANUAL PAYMENT MODAL ---
+function PaymentModal({ user, onClose, addToast, onUpdateStatus }) {
+  const [utr, setUtr] = useState('');
+  const [loading, setLoading] = useState(false);
+
+  // 1. UPDATE THIS WITH YOUR ACTUAL GOOGLE PAY OR PHONEPE UPI ID
+  const upiId = "parshwa.mehta22@okicici"; 
+  const payeeName = "Parshwa Mehta";
+  const amount = "11.00";
+  
+  // This generates the actual payment string the QR code reads
+  const upiString = `upi://pay?pa=${upiId}&pn=${encodeURIComponent(payeeName)}&am=${amount}&cu=INR`;
+  
+  // We use a free API to generate the QR image so we don't have to install complex React libraries via Babel
+  const qrUrl = `https://api.qrserver.com/v1/create-qr-code/?size=180x180&data=${encodeURIComponent(upiString)}`;
+
+  const submitUtr = async () => {
+    if (utr.length < 12) {
+      addToast('UTR must be exactly 12 digits', '❌');
+      return;
+    }
+    setLoading(true);
+
+    // Save the UTR to Supabase and flip status to pending
+    const { error } = await sb
+      .from('user_data')
+      .update({ pending_utr: utr, sub_status: 'pending' })
+      .eq('user_id', user.id);
+
+    setLoading(false);
+
+    if (error) {
+      addToast('Failed to submit UTR. Try again.', '❌');
+    } else {
+      addToast('UTR Submitted! Verifying soon.', '⏳');
+      onUpdateStatus('pending'); // Live UI update
+      onClose();
+    }
+  };
+
+  return (
+    <div className="ov" onClick={(e) => e.target.className === 'ov' && onClose()}>
+      <div className="modal" style={{ textAlign: 'center', padding: '30px' }}>
+        <h2 style={{ marginBottom: '10px' }}>Unlock Pro for ₹11/Year</h2>
+        <p style={{ fontSize: '12px', color: 'var(--text3)', marginBottom: '20px', lineHeight: 1.4 }}>
+          Scan with GPay, PhonePe, or Paytm.<br/>
+          Once paid, enter your UTR number below.
+        </p>
+        
+        <div style={{ background: 'white', padding: '15px', display: 'inline-block', borderRadius: '10px', marginBottom: '20px' }}>
+           <img src={qrUrl} alt="UPI QR Code" style={{ width: '150px', height: '150px' }} />
+        </div>
+
+        <div className="fg" style={{ textAlign: 'left' }}>
+          <label className="fl">Enter 12-Digit UTR Number</label>
+          <input 
+            className="fi" 
+            type="text" 
+            maxLength="12"
+            value={utr} 
+            onChange={(e) => setUtr(e.target.value.replace(/[^0-9]/g, ''))} // Strips out anything that isn't a number
+            placeholder="e.g. 312345678901" 
+          />
+        </div>
+        
+        <button className="btn bp" style={{ width: '100%', justifyContent: 'center', padding: '12px', marginTop: '10px' }} onClick={submitUtr} disabled={loading}>
+          {loading ? 'Submitting...' : 'Verify Payment'}
+        </button>
       </div>
     </div>
   );
@@ -609,7 +680,6 @@ function OverView({habits,logs,onSel, level, xp, globalStreakData}){
   );
 }
 
-// Data Science Correlation Insight Component - UPDATED FIX
 function InsightEngine({ habits, logs }) {
   const [insight, setInsight] = useState("Log more habits to generate advanced data correlations.");
 
@@ -720,8 +790,10 @@ function App(){
   const [habits,setHabits]=useState(DEF_HABITS);
   const [logs,setLogs]=useState({});
   
-  const [dataLoaded,setDataLoaded]=useState(false); 
+  // NEW: Tracking Subscription Status
+  const [subStatus, setSubStatus] = useState('inactive');
   
+  const [dataLoaded,setDataLoaded]=useState(false); 
   const [tab,setTab]=useState('week');
   const [wOff,setWOff]=useState(0);
   const [selM,setSelM]=useState(new Date().getMonth());
@@ -742,6 +814,7 @@ function App(){
         setUser(null);
         setHabits(DEF_HABITS);
         setLogs({});
+        setSubStatus('inactive');
         setDataLoaded(false);
       }
     });
@@ -749,20 +822,27 @@ function App(){
   },[]);
 
   // --- 2. BULLETPROOF FETCH ---
+ // --- 2. BULLETPROOF FETCH (WITH VIP BYPASS) ---
   useEffect(()=>{
     if(!user || !sb) return;
     
     const fetchCloudData = async () => {
-      const { data, error } = await sb.from('user_data').select('habits, logs').eq('user_id', user.id).single();
+      const { data, error } = await sb.from('user_data').select('habits, logs, sub_status').eq('user_id', user.id).single();
+      
+      // Lifetime Admin Access for Creator
+      const isVIP = user.email === 'parshwa.mehta2296@gmail.com';
       
       if (data) {
         setHabits(data.habits || []);
         setLogs(data.logs || {});
+        // If VIP, force active. Otherwise, trust the database.
+        setSubStatus(isVIP ? 'active' : (data.sub_status || 'inactive'));
         setDataLoaded(true); 
       } else if (error && error.code === 'PGRST116') {
-        await sb.from('user_data').insert({ user_id: user.id, habits: DEF_HABITS, logs: {} });
+        await sb.from('user_data').insert({ user_id: user.id, habits: DEF_HABITS, logs: {}, sub_status: isVIP ? 'active' : 'inactive' });
         setHabits(DEF_HABITS);
         setLogs({});
+        setSubStatus(isVIP ? 'active' : 'inactive');
         setDataLoaded(true); 
       } else {
         console.error("Database Error:", error);
@@ -881,7 +961,7 @@ function App(){
           <div className="xp-meta"><span>Lv.{level} {LEVELS[level]}</span><span>{xp}/{nextXp} XP</span></div>
           <div className="xp-bar"><div className="xp-fill" style={{width:xpPct+'%'}}/></div>
         </div>
-        <div className="sb-footer">
+        <div className="sb-footer" style={{ flexWrap: 'wrap' }}>
           <div className="sb-user">
             <div className="sb-avatar">{(user.email||'D')[0].toUpperCase()}</div>
             <div className="sb-user-info">
@@ -889,6 +969,24 @@ function App(){
               <div className="sb-user-email">{user.email||'demo@habits.app'}</div>
             </div>
           </div>
+          
+          {/* DYNAMIC PRO STATUS BANNER */}
+          {subStatus === 'inactive' && (
+            <button className="btn bp" style={{ width: '100%', marginBottom: '8px', justifyContent: 'center', background: 'linear-gradient(90deg, #8b5cf6, #ec4899)' }} onClick={() => setModal({mode: 'upgrade'})}>
+              ⭐ Upgrade to Pro
+            </button>
+          )}
+          {subStatus === 'pending' && (
+            <div style={{ width: '100%', marginBottom: '8px', padding: '8px', background: 'var(--bg4)', borderRadius: 'var(--r-sm)', fontSize: '11px', color: 'var(--text2)', textAlign: 'center', border: '1px dashed var(--accent)' }}>
+              ⏳ Payment verifying (max 24h)
+            </div>
+          )}
+          {subStatus === 'active' && (
+            <div style={{ width: '100%', marginBottom: '8px', padding: '8px', background: 'rgba(62,207,142,0.1)', borderRadius: 'var(--r-sm)', fontSize: '11px', color: 'var(--green)', textAlign: 'center', fontWeight: 'bold', border: '1px solid rgba(62,207,142,0.3)' }}>
+              ⭐ PRO ACTIVE
+            </div>
+          )}
+
           <button className="sb-signout" onClick={()=>{setUser(null);sb?.auth.signOut();}}>Sign Out</button>
         </div>
       </aside>
@@ -905,9 +1003,7 @@ function App(){
           <div className="stats-row">
             <div className="stat-card"><div className="stat-top" style={{background:'var(--blue)'}}/><div className="stat-value">{habits.length}</div><div className="stat-label">Active Habits</div><div className="stat-icon-bg">✦</div></div>
             <div className="stat-card"><div className="stat-top" style={{background:'var(--green)'}}/><div className="stat-value">{weekPct}%</div><div className="stat-label">Week Average</div><div className="stat-icon-bg">📊</div></div>
-            
             <div className="stat-card"><div className="stat-top" style={{background:'var(--accent)'}}/><div className="stat-value" style={{color:'var(--accent)'}}>🔥 {globalStreakData.current}</div><div className="stat-label">Day Streak <span style={{textTransform:'none', opacity:0.7, fontWeight:500, marginLeft: 4}}>(Best: {globalStreakData.best})</span></div></div>
-            
             <div className="stat-card"><div className="stat-top"/><div className="stat-value">{todayPct}%</div><div className="stat-label">Today</div><div className="stat-icon-bg">📅</div></div>
           </div>
           <div className="tabs">
@@ -922,9 +1018,1044 @@ function App(){
         </div>
       </main>
  
-      {modal&&<HabitModal habit={modal.habit} onSave={saveHabit} onClose={()=>setModal(null)}/>}
+      {modal?.mode === 'add' || modal?.mode === 'edit' ? (
+        <HabitModal habit={modal.habit} onSave={saveHabit} onClose={()=>setModal(null)}/>
+      ) : modal?.mode === 'upgrade' ? (
+        <PaymentModal user={user} onClose={()=>setModal(null)} addToast={addToast} onUpdateStatus={setSubStatus} />
+      ) : null}
+
       <Toasts ts={toasts}/>
     </div>
+  );
+}
+ReactDOM.createRoot(document.getElementById('root')).render(<App/>);
+</script>
+</body>
+</html><!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Habits — Progress, Not Perfection</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/babel-standalone/7.23.5/babel.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&family=Playfair+Display:ital,wght@0,700;1,400&display=swap" rel="stylesheet">
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0;}
+:root{
+  --bg:#0e0e0f;--bg2:#141416;--bg3:#1a1a1d;--bg4:#222226;--bg5:#2a2a2e;
+  --border:#2e2e34;--border2:#3a3a42;
+  --text:#f0eff4;--text2:#a09fb5;--text3:#5e5d72;
+  --accent:#e07b39;--accent2:#f0a460;--accent-glow:rgba(224,123,57,0.15);
+  --green:#3ecf8e;--green-dim:#1a4a35;
+  --blue:#4e8ef7;--blue-dim:#1a2e5a;
+  --red:#f05e5e;--red-dim:#3d1a1a;
+  --r:10px;--r-sm:6px;--r-lg:14px;
+  --font:'Outfit',sans-serif;--font-d:'Playfair Display',serif;
+  --sh:0 2px 8px rgba(0,0,0,0.4);--sh-lg:0 8px 32px rgba(0,0,0,0.6);
+  --tr:0.18s cubic-bezier(0.4,0,0.2,1);--sw:220px;
+}
+html,body,#root{height:100%;overflow:hidden;}
+body{font-family:var(--font);background:var(--bg);color:var(--text);font-size:14px;line-height:1.5;-webkit-font-smoothing:antialiased;}
+::-webkit-scrollbar{width:5px;height:5px;}
+::-webkit-scrollbar-track{background:transparent;}
+::-webkit-scrollbar-thumb{background:var(--border2);border-radius:3px;}
+.shell{display:flex;height:100vh;overflow:hidden;}
+
+/* SIDEBAR */
+.sidebar{width:var(--sw);min-width:var(--sw);background:var(--bg2);border-right:1px solid var(--border);display:flex;flex-direction:column;overflow:hidden;}
+.sb-header{padding:22px 18px 16px;border-bottom:1px solid var(--border);}
+.sb-brand{font-size:18px;font-weight:700;letter-spacing:-0.02em;margin-bottom:2px;}
+.sb-brand span{color:var(--accent);}
+.sb-tagline{font-size:11px;color:var(--text3);letter-spacing:0.04em;}
+.sb-add{margin:14px 14px 0;display:flex;align-items:center;gap:8px;padding:9px 14px;background:var(--bg4);border:1px solid var(--border2);border-radius:var(--r-sm);color:var(--text2);font-size:13px;font-family:var(--font);cursor:pointer;transition:all var(--tr);font-weight:500;}
+.sb-add:hover{background:var(--bg5);color:var(--text);border-color:var(--accent);}
+.sb-add-icon{width:22px;height:22px;background:var(--accent);border-radius:5px;display:flex;align-items:center;justify-content:center;color:white;font-size:14px;font-weight:700;flex-shrink:0;}
+.sb-habits{flex:1;overflow-y:auto;padding:10px 8px;}
+.sb-section{font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:0.12em;color:var(--text3);padding:10px 10px 6px;}
+.sb-habit{display:flex;align-items:center;gap:10px;padding:8px 10px;border-radius:var(--r-sm);cursor:pointer;transition:all var(--tr);margin-bottom:2px;}
+.sb-habit:hover{background:var(--bg4);}
+.sb-habit-icon{width:34px;height:34px;border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:17px;flex-shrink:0;}
+.sb-habit-info{flex:1;min-width:0;}
+.sb-habit-name{font-size:12px;font-weight:700;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;text-transform:uppercase;letter-spacing:0.04em;}
+.sb-habit-goal{font-size:10px;color:var(--text3);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.sb-habit-streak{font-size:10px;font-weight:700;color:var(--accent);flex-shrink:0;}
+.sb-footer{padding:14px;border-top:1px solid var(--border);}
+.sb-user{display:flex;align-items:center;gap:10px;padding:8px 10px;border-radius:var(--r-sm);margin-bottom:8px;}
+.sb-avatar{width:30px;height:30px;border-radius:50%;background:linear-gradient(135deg,var(--accent),var(--accent2));display:flex;align-items:center;justify-content:center;color:white;font-weight:700;font-size:13px;flex-shrink:0;}
+.sb-user-info{flex:1;min-width:0;}
+.sb-user-name{font-size:12px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.sb-user-email{font-size:10px;color:var(--text3);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.sb-signout{width:100%;padding:8px;background:transparent;border:1px solid var(--border);border-radius:var(--r-sm);color:var(--text3);font-family:var(--font);font-size:12px;font-weight:500;cursor:pointer;transition:all var(--tr);}
+.sb-signout:hover{background:var(--red-dim);color:var(--red);border-color:var(--red);}
+.xp-strip{padding:0 14px 10px;}
+.xp-meta{display:flex;justify-content:space-between;font-size:10px;color:var(--text3);margin-bottom:4px;font-weight:600;}
+.xp-bar{height:3px;background:var(--bg5);border-radius:99px;overflow:hidden;}
+.xp-fill{height:100%;border-radius:99px;background:linear-gradient(90deg,#8b5cf6,#ec4899);transition:width 0.6s ease;}
+
+/* MAIN */
+.main{flex:1;display:flex;flex-direction:column;overflow:hidden;background:var(--bg);}
+.topbar{padding:20px 28px 0;flex-shrink:0;}
+.topbar-inner{display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:18px;}
+.topbar-title{font-size:28px;font-weight:700;letter-spacing:-0.03em;line-height:1;}
+.topbar-sub{font-size:12px;color:var(--text3);margin-top:3px;letter-spacing:0.02em;}
+
+/* STATS */
+.stats-row{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:20px;}
+.stat-card{background:var(--bg3);border:1px solid var(--border);border-radius:var(--r);padding:16px 18px;position:relative;overflow:hidden;transition:all var(--tr);cursor:default;}
+.stat-card:hover{border-color:var(--border2);transform:translateY(-1px);}
+.stat-top{position:absolute;top:0;left:0;right:0;height:2px;}
+.stat-value{font-size:28px;font-weight:700;line-height:1;letter-spacing:-0.03em;margin-bottom:3px;}
+.stat-label{font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:0.1em;color:var(--text3);}
+.stat-icon-bg{position:absolute;right:12px;top:50%;transform:translateY(-50%);font-size:24px;opacity:0.08;}
+
+/* TABS */
+.tabs{display:flex;gap:2px;padding:0 28px;}
+.tab{display:flex;align-items:center;gap:7px;padding:9px 16px;border-radius:var(--r-sm) var(--r-sm) 0 0;border:1px solid transparent;border-bottom:none;font-size:13px;font-weight:500;font-family:var(--font);cursor:pointer;color:var(--text3);background:transparent;transition:all var(--tr);position:relative;bottom:-1px;}
+.tab:hover{color:var(--text2);}
+.tab.active{background:var(--bg2);border-color:var(--border);color:var(--text);font-weight:600;}
+
+/* CONTENT */
+.content{flex:1;overflow-y:auto;background:var(--bg2);border-top:1px solid var(--border);padding:24px 28px;}
+
+/* TABLE */
+.tw{background:var(--bg3);border:1px solid var(--border);border-radius:var(--r);overflow:hidden;}
+.htable{width:100%;border-collapse:collapse;}
+.htable thead tr{background:var(--bg4);}
+.htable th{padding:10px 14px;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:0.1em;color:var(--text3);border-bottom:1px solid var(--border);white-space:nowrap;}
+.htable th.dth{text-align:center;min-width:60px;}
+.dth .dn{font-size:10px;font-weight:700;color:var(--text3);}
+.dth .dd{font-size:15px;font-weight:700;color:var(--text2);margin-top:2px;}
+.dth.tc .dn{color:var(--accent);}
+.dth.tc .dd{color:var(--accent);}
+.htable td{padding:10px 14px;border-bottom:1px solid var(--border);vertical-align:middle;}
+.htable tbody tr:last-child td{border-bottom:none;}
+.htable tbody tr:hover td{background:rgba(255,255,255,0.018);}
+.hcell{display:flex;align-items:center;gap:10px;}
+.hc-icon{width:32px;height:32px;border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:16px;flex-shrink:0;}
+.hc-name{font-size:13px;font-weight:700;text-transform:uppercase;letter-spacing:0.04em;}
+.hc-goal{font-size:10px;color:var(--text3);}
+.hcell-acts{margin-left:auto;display:flex;gap:3px;opacity:0;transition:opacity var(--tr);}
+.htable tbody tr:hover .hcell-acts{opacity:1;}
+.cc{text-align:center;}
+.chk{width:24px;height:24px;border-radius:50%;border:2px solid var(--border2);background:transparent;cursor:pointer;display:inline-flex;align-items:center;justify-content:center;transition:all 0.2s cubic-bezier(0.34,1.56,0.64,1);}
+.chk:hover:not(.done):not(.fut){border-color:var(--green);background:rgba(62,207,142,0.08);}
+.chk.done{animation:popIn 0.25s cubic-bezier(0.34,1.56,0.64,1);}
+.chk.done::after{content:'✓';color:white;font-size:12px;font-weight:700;}
+.chk.missed{border-color:var(--border);opacity:0.35;}
+.chk.fut{border-color:var(--border);opacity:0.2;cursor:not-allowed;}
+@keyframes popIn{0%{transform:scale(0.6);}100%{transform:scale(1);}}
+.prog-cell{min-width:130px;}
+.prog-row{display:flex;align-items:center;gap:8px;}
+.prog-bar{flex:1;height:4px;background:var(--bg5);border-radius:99px;overflow:hidden;}
+.prog-fill{height:100%;border-radius:99px;transition:width 0.5s ease;}
+.prog-pct{font-size:11px;font-weight:600;color:var(--text3);min-width:26px;text-align:right;}
+
+/* MONTH TABLE */
+.mt-scroll{overflow-x:auto;}
+.mt{border-collapse:collapse;min-width:600px;width:100%;}
+.mt th{padding:8px 5px;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:0.08em;color:var(--text3);border-bottom:1px solid var(--border);text-align:center;min-width:24px;}
+.mt th.hc{text-align:left;min-width:140px;padding-left:14px;}
+.mt td{padding:6px 5px;border-bottom:1px solid var(--border);text-align:center;vertical-align:middle;}
+.mt td.hc{text-align:left;padding-left:14px;}
+.mt tbody tr:last-child td{border-bottom:none;}
+.mt tbody tr:hover td{background:rgba(255,255,255,0.018);}
+.mchk{width:15px;height:15px;border-radius:4px;border:1.5px solid var(--border2);background:transparent;cursor:pointer;display:inline-flex;align-items:center;justify-content:center;transition:all 0.15s ease;font-size:9px;color:white;}
+.mchk:hover:not(.done):not(.fut){border-color:var(--green);background:rgba(62,207,142,0.1);}
+.mchk.missed{background:rgba(240,94,94,0.08);border-color:rgba(240,94,94,0.2);}
+.mchk.fut{opacity:0.18;cursor:not-allowed;}
+
+/* OVERVIEW & HEATMAP */
+.hm-wrapper{background:var(--bg3);border:1px solid var(--border);border-radius:var(--r);padding:20px;margin-bottom:20px;}
+.hm-head{display:flex;justify-content:space-between;align-items:center;margin-bottom:14px;}
+.hm-title{font-size:13px;font-weight:600;}
+.hm-grid{display:grid;grid-template-rows:repeat(7,13px);grid-auto-flow:column;gap:4px;overflow-x:auto;padding-bottom:10px; position:relative;}
+.hm-cell{width:13px;height:13px;border-radius:2px;background:var(--bg4);transition:all var(--tr); position:relative;}
+.hm-cell:hover{transform:scale(1.2);outline:1px solid var(--border2); z-index:5;}
+.hm-l1{background:#0e4429;}
+.hm-l2{background:#006d32;}
+.hm-l3{background:#26a641;}
+.hm-l4{background:#39d353;}
+
+/* NEW: Strict Max Streak Glow */
+.hm-streak-glow { 
+  outline: 2px solid var(--accent) !important; 
+  box-shadow: 0 0 10px rgba(224, 123, 57, 0.8) !important; 
+  z-index: 10 !important; 
+  transform: scale(1.25) !important;
+  border-radius: 3px;
+}
+
+/* BADGES */
+.badges-grid { display:flex; gap:16px; flex-wrap:wrap; }
+.badge { display:flex; flex-direction:column; align-items:center; gap:6px; width:90px; text-align:center; transition:all var(--tr); cursor:default; }
+.badge:hover { transform:translateY(-2px); }
+.badge-icon { width:52px; height:52px; border-radius:50%; display:flex; align-items:center; justify-content:center; font-size:26px; background:var(--bg4); border:2px solid var(--border2); color:var(--text3); position:relative; overflow:hidden;}
+.badge.unlocked .badge-icon::after { content:''; position:absolute; top:-50%; left:-50%; width:200%; height:200%; background:linear-gradient(45deg, transparent, rgba(255,255,255,0.15), transparent); transform:rotate(45deg); animation:shine 3.5s infinite;}
+@keyframes shine { 0% {left:-100%;} 20% {left:100%;} 100% {left:100%;} }
+.badge.unlocked.b-level .badge-icon { border-color:var(--blue); background:rgba(78,142,247,0.1); box-shadow:0 0 14px rgba(78,142,247,0.25); }
+.badge.unlocked.b-streak .badge-icon { border-color:var(--red); background:rgba(240,94,94,0.1); box-shadow:0 0 14px rgba(240,94,94,0.25); }
+.badge.unlocked.b-xp .badge-icon { border-color:var(--green); background:rgba(62,207,142,0.1); box-shadow:0 0 14px rgba(62,207,142,0.25); }
+.badge-name { font-size:11px; font-weight:700; color:var(--text3); line-height:1.2; transition:all var(--tr); }
+.badge.unlocked .badge-name { color:var(--text); }
+.badge-desc { font-size:9px; color:var(--text3); opacity:0.7; }
+
+/* INSIGHT ENGINE */
+.insight-card { background: linear-gradient(145deg, var(--bg3), var(--bg4)); border: 1px solid var(--border); border-left: 3px solid var(--accent); border-radius: var(--r); padding: 18px; margin-bottom: 20px; display: flex; gap: 14px; align-items: center; box-shadow: var(--sh); }
+.insight-icon { font-size: 26px; background: rgba(224,123,57,0.15); width: 44px; height: 44px; border-radius: 50%; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+.insight-text { font-size: 14px; color: var(--text2); line-height: 1.4; }
+.insight-text span { color: var(--text); font-weight: 700; padding: 0 4px; }
+.insight-tag { display: inline-block; background: var(--bg5); padding: 2px 8px; border-radius: 99px; font-size: 10px; font-weight: 700; color: var(--accent); text-transform: uppercase; margin-bottom: 4px; letter-spacing: 0.05em; }
+
+/* CATEGORY TAGS */
+.cat-wrap { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 6px; }
+.cat-btn { padding: 6px 12px; border-radius: 12px; font-size: 11px; font-weight: 600; cursor: pointer; border: 1px solid var(--border2); background: transparent; color: var(--text3); transition: all var(--tr); }
+.cat-btn:hover { border-color: var(--border); color: var(--text2); }
+.cat-btn.sel { background: var(--bg4); color: var(--text); border-color: var(--accent); box-shadow: 0 0 8px var(--accent-glow); }
+
+.ov-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(190px,1fr));gap:12px;}
+.mc{background:var(--bg3);border:1px solid var(--border);border-radius:var(--r);padding:16px;cursor:pointer;transition:all var(--tr);position:relative;overflow:hidden;}
+.mc:hover{border-color:var(--border2);transform:translateY(-2px);}
+.mc.curr{border-color:var(--accent);}
+.mc-lbl{font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:0.1em;color:var(--text3);margin-bottom:4px;}
+.mc-pct{font-size:30px;font-weight:700;letter-spacing:-0.03em;line-height:1;margin-bottom:10px;}
+.mc.curr .mc-pct{color:var(--accent);}
+.mc-tag{position:absolute;top:10px;right:10px;background:var(--accent);color:white;font-size:8px;font-weight:800;padding:2px 7px;border-radius:99px;text-transform:uppercase;letter-spacing:0.06em;}
+.mc-emj{margin-top:8px;font-size:13px;display:flex;flex-wrap:wrap;gap:3px;}
+
+/* ANALYTICS */
+.ch-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:14px;}
+.ch-card{background:var(--bg3);border:1px solid var(--border);border-radius:var(--r);padding:18px;}
+.ch-head{display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;}
+.ch-title{font-size:13px;font-weight:600;}
+.ch-wrap{height:200px;position:relative;}
+
+/* AUTH */
+.auth-bg{min-height:100vh;display:flex;align-items:center;justify-content:center;background:var(--bg);position:relative;overflow:hidden;}
+.auth-bg::before{content:'';position:absolute;inset:0;background:radial-gradient(ellipse 60% 50% at 50% 0%,rgba(224,123,57,0.07) 0%,transparent 70%);pointer-events:none;}
+.auth-card{background:var(--bg2);border:1px solid var(--border);border-radius:var(--r-lg);padding:44px 40px;width:100%;max-width:400px;box-shadow:var(--sh-lg);position:relative;z-index:1;animation:fadeUp 0.4s ease;}
+@keyframes fadeUp{from{opacity:0;transform:translateY(16px);}to{opacity:1;transform:translateY(0);}}
+.auth-logo{display:flex;align-items:center;gap:12px;margin-bottom:32px;}
+.auth-logo-icon{width:44px;height:44px;border-radius:11px;background:linear-gradient(135deg,var(--accent),var(--accent2));display:flex;align-items:center;justify-content:center;font-size:22px;color:white;font-weight:700;box-shadow:0 4px 16px rgba(224,123,57,0.3);}
+.auth-logo-text{font-size:22px;font-weight:700;letter-spacing:-0.03em;}
+.auth-logo-sub{font-size:11px;color:var(--text3);margin-top:1px;letter-spacing:0.04em;}
+.auth-div{display:flex;align-items:center;gap:12px;margin:20px 0;color:var(--text3);font-size:11px;font-weight:600;letter-spacing:0.08em;text-transform:uppercase;}
+.auth-div::before,.auth-div::after{content:'';flex:1;height:1px;background:var(--border);}
+.g-btn{width:100%;padding:11px;background:var(--bg3);border:1px solid var(--border2);border-radius:var(--r-sm);display:flex;align-items:center;justify-content:center;gap:10px;color:var(--text);font-family:var(--font);font-size:13.5px;font-weight:500;cursor:pointer;transition:all var(--tr);margin-bottom:16px;}
+.g-btn:hover{background:var(--bg5);transform:translateY(-1px);box-shadow:0 4px 12px rgba(0,0,0,0.3);}
+.g-icon{width:20px;height:20px;}
+.fl{display:block;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:0.08em;color:var(--text3);margin-bottom:6px;}
+.fi{width:100%;padding:10px 13px;background:var(--bg4);border:1px solid var(--border2);border-radius:var(--r-sm);color:var(--text);font-family:var(--font);font-size:13.5px;transition:all var(--tr);}
+.fi:focus{outline:none;border-color:var(--accent);box-shadow:0 0 0 3px var(--accent-glow);}
+.fi::placeholder{color:var(--text3);}
+.fg{margin-bottom:14px;}
+.sub-btn{width:100%;padding:11px;margin-top:6px;background:var(--accent);border:none;border-radius:var(--r-sm);color:white;font-family:var(--font);font-size:13.5px;font-weight:600;cursor:pointer;transition:all var(--tr);box-shadow:0 4px 14px rgba(224,123,57,0.25);}
+.sub-btn:hover{background:var(--accent2);transform:translateY(-1px);}
+.auth-sw{text-align:center;margin-top:18px;font-size:12px;color:var(--text3);}
+.auth-sw button{background:none;border:none;color:var(--accent);font-family:var(--font);font-size:12px;cursor:pointer;font-weight:600;}
+.auth-err{background:var(--red-dim);border:1px solid var(--red);color:var(--red);padding:10px 13px;border-radius:var(--r-sm);font-size:12px;margin-bottom:14px;}
+.demo-btn{width:100%;padding:10px;background:transparent;border:1px dashed var(--border2);border-radius:var(--r-sm);color:var(--text3);font-family:var(--font);font-size:12.5px;font-weight:500;cursor:pointer;transition:all var(--tr);margin-top:10px;}
+.demo-btn:hover{color:var(--text2);background:var(--bg4);}
+
+/* MODAL */
+.ov{position:fixed;inset:0;background:rgba(0,0,0,0.7);display:flex;align-items:center;justify-content:center;z-index:1000;backdrop-filter:blur(6px);padding:20px;animation:fi2 0.15s ease;}
+@keyframes fi2{from{opacity:0;}to{opacity:1;}}
+.modal{background:var(--bg2);border:1px solid var(--border2);border-radius:var(--r-lg);width:100%;max-width:460px;box-shadow:var(--sh-lg);animation:su 0.2s cubic-bezier(0.34,1.1,0.64,1);max-height:90vh;overflow-y:auto;}
+@keyframes su{from{transform:translateY(20px);opacity:0;}to{transform:translateY(0);opacity:1;}}
+.mh{padding:20px 22px 16px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;}
+.mt2{font-size:15px;font-weight:700;letter-spacing:-0.02em;}
+.mc2{background:none;border:none;color:var(--text3);font-size:20px;cursor:pointer;padding:2px 6px;border-radius:4px;transition:all var(--tr);}
+.mc2:hover{background:var(--bg4);color:var(--text);}
+.mb{padding:20px 22px;}
+.mf{padding:14px 22px;border-top:1px solid var(--border);display:flex;justify-content:flex-end;gap:8px;}
+.eg{display:flex;flex-wrap:wrap;gap:6px;max-height:120px;overflow-y:auto;}
+.eo{width:32px;height:32px;border-radius:6px;border:2px solid transparent;background:var(--bg4);cursor:pointer;font-size:16px;display:flex;align-items:center;justify-content:center;transition:all var(--tr);}
+.eo:hover,.eo.sel{border-color:var(--accent);background:var(--accent-glow);}
+.co-wrap{display:flex;flex-wrap:wrap;gap:6px;}
+.co{width:24px;height:24px;border-radius:50%;cursor:pointer;border:2px solid transparent;transition:all var(--tr);}
+.co.sel,.co:hover{border-color:var(--text);transform:scale(1.15);}
+
+/* BUTTONS */
+.btn{display:inline-flex;align-items:center;gap:6px;padding:7px 14px;border-radius:var(--r-sm);font-family:var(--font);font-size:13px;font-weight:500;cursor:pointer;border:none;transition:all var(--tr);}
+.bp{background:var(--accent);color:white;}
+.bp:hover{background:var(--accent2);transform:translateY(-1px);}
+.bs{background:var(--bg4);color:var(--text2);border:1px solid var(--border);}
+.bs:hover{background:var(--bg5);color:var(--text);}
+.bg2{background:transparent;color:var(--text3);}
+.bg2:hover{background:var(--bg4);color:var(--text);}
+.bsm{padding:5px 10px;font-size:12px;}
+.divider{height:1px;background:var(--border);margin:16px 0;}
+.empty{text-align:center;padding:52px 20px;color:var(--text3);}
+.empty-icon{font-size:40px;margin-bottom:12px;opacity:0.4;}
+.empty-title{font-size:15px;font-weight:600;color:var(--text2);margin-bottom:6px;}
+.empty-sub{font-size:12px;margin-bottom:18px;}
+.wnav{display:flex;align-items:center;gap:10px;margin-bottom:16px;}
+.wnav-lbl{font-size:13px;font-weight:600;color:var(--text2);min-width:90px;text-align:center;}
+.toasts{position:fixed;bottom:20px;right:20px;z-index:9999;display:flex;flex-direction:column;gap:8px;}
+.toast{background:var(--bg4);border:1px solid var(--border2);padding:10px 16px;border-radius:var(--r-sm);font-size:13px;font-weight:500;box-shadow:var(--sh-lg);display:flex;align-items:center;gap:8px;animation:ti 0.25s ease;}
+@keyframes ti{from{transform:translateX(100%);opacity:0;}to{transform:translateX(0);opacity:1;}}
+</style>
+</head>
+<body>
+<div id="root"></div>
+<script type="text/babel">
+const {useState,useEffect,useRef,useCallback} = React;
+
+// --- SUPABASE INITIALIZATION ---
+const SB_URL = 'https://xwvdzaohqqdraimiiqtl.supabase.co';
+const SB_KEY = 'sb_publishable_ioDTJ8MSlShnLHnARTTW-w_XfMPBusk';
+let sb = null;
+try {
+  sb = window.supabase?.createClient(SB_URL, SB_KEY);
+} catch(e) {
+  console.error("Supabase failed to initialize", e);
+}
+
+const MONTHS=['January','February','March','April','May','June','July','August','September','October','November','December'];
+const DAY_SHORT=['SUN','MON','TUE','WED','THU','FRI','SAT'];
+const EMOJIS=['💧','📚','🏃','🧘','💊','🎯','✍️','🎨','🌱','💪','🧠','🍎','😴','🎵','🙏','💻','📝','🚴','🍵','⚡'];
+const COLORS=['#e07b39','#3ecf8e','#4e8ef7','#ec4899','#a78bfa','#f97316','#14b8a6','#f59e0b'];
+const BCOLORS=['rgba(224,123,57,0.13)','rgba(62,207,142,0.1)','rgba(78,142,247,0.13)','rgba(236,72,153,0.11)','rgba(167,139,250,0.13)','rgba(249,115,22,0.11)','rgba(20,184,166,0.1)','rgba(245,158,11,0.11)'];
+const LEVELS=['Seedling','Sprout','Sapling','Grower','Bloomer','Achiever','Master','Legend'];
+const LXPS=[0,100,300,600,1200,2500,5000,10000];
+
+const CATS = ['Health', 'Tech', 'Learning', 'Lifestyle', 'Other'];
+
+const DEF_HABITS=[
+  {id:'d1',name:'WORKOUT',emoji:'💪',goal:'Daily routine',color:'#e07b39', category: 'Health'},
+  {id:'d2',name:'CODING',emoji:'💻',goal:'>3 HOURS',color:'#4e8ef7', category: 'Tech'},
+  {id:'d3',name:'ACADEMICS',emoji:'📚',goal:'>3 HOURS',color:'#3ecf8e', category: 'Learning'},
+  {id:'d4',name:'SKILLS',emoji:'🎯',goal:'1 HOUR',color:'#a78bfa', category: 'Tech'},
+  {id:'d5',name:'WAKE UP',emoji:'😴',goal:'6 OR 7',color:'#f59e0b', category: 'Lifestyle'},
+  {id:'d6',name:'WATER',emoji:'💧',goal:'3 BOTTLES',color:'#4e8ef7', category: 'Health'},
+];
+
+const todayStr=()=>{const d=new Date();return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;};
+const dIM=(y,m)=>new Date(y,m+1,0).getDate();
+const getWD=(off=0)=>{const now=new Date();const mon=new Date(now);mon.setDate(now.getDate()-((now.getDay()+6)%7)+off*7);return Array.from({length:7},(_,i)=>{const d=new Date(mon);d.setDate(mon.getDate()+i);return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;});};
+const getMD=(y,m)=>Array.from({length:dIM(y,m)},(_,i)=>`${y}-${String(m+1).padStart(2,'0')}-${String(i+1).padStart(2,'0')}`);
+
+const getYearDates = () => {
+  const dates = [];
+  const d = new Date();
+  d.setDate(d.getDate() - 364);
+  while (d.getDay() !== 0) d.setDate(d.getDate() - 1);
+  const end = new Date();
+  while (d <= end) {
+    dates.push(`${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`);
+    d.setDate(d.getDate() + 1);
+  }
+  return dates;
+};
+
+const cPct=(dates,habits,logs)=>{const t=dates.length*habits.length;if(!t)return 0;return Math.round(dates.reduce((s,d)=>s+habits.reduce((h,hb)=>h+(logs[d]?.[hb.id]?1:0),0),0)/t*100);};
+const gStreak=(hid,logs)=>{const s=Object.keys(logs).sort().reverse();const td=todayStr();let cur=0,best=0,streak=0;for(let i=0;i<s.length;i++){if(logs[s[i]]?.[hid]){cur++;if(i===0||(i===1&&s[0]===td))streak=cur;best=Math.max(best,cur);}else{if(streak===0&&cur>0)streak=cur;cur=0;}}return{current:streak,best};};
+const gXP=logs=>Object.values(logs).reduce((s,d)=>s+Object.values(d).filter(Boolean).length,0)*10;
+const gLevel=xp=>{let l=0;for(let i=0;i<LXPS.length;i++)if(xp>=LXPS[i])l=i;return l;};
+ 
+const GIcon=()=><svg className="g-icon" viewBox="0 0 24 24"><path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" fill="#4285F4"/><path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" fill="#34A853"/><path d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z" fill="#FBBC05"/><path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" fill="#EA4335"/></svg>;
+ 
+function Toasts({ts}){return <div className="toasts">{ts.map(t=><div key={t.id} className="toast">{t.icon} {t.msg}</div>)}</div>;}
+ 
+function Auth({onAuth}){
+  const [mode,setMode]=useState('login');
+  const [email,setEmail]=useState('');
+  const [pass,setPass]=useState('');
+  const [loading,setLoading]=useState(false);
+  const [err,setErr]=useState('');
+  
+  const gLogin=async()=>{
+    if(!sb){onAuth({id:'demo',email:'demo@habits.app',demo:true});return;}
+    try{
+      const {error}=await sb.auth.signInWithOAuth({ provider:'google', options:{ redirectTo: window.location.origin + window.location.pathname } });
+      if(error)throw error;
+    }catch(e){setErr(e.message);}
+  };
+
+  const eLogin=async()=>{
+    if(!email||!pass){setErr('Please fill all fields.');return;}
+    setLoading(true);setErr('');
+    try{
+      if(sb){const fn=mode==='login'?sb.auth.signInWithPassword.bind(sb.auth):sb.auth.signUp.bind(sb.auth);const{data,error}=await fn({email,password:pass});if(error)throw error;onAuth(data.user||data.session?.user||{id:'local',email});}
+      else{onAuth({id:'local_'+Date.now(),email,demo:true});}
+    }catch(e){setErr(e.message||'Auth failed.');}
+    setLoading(false);
+  };
+  return(
+    <div className="auth-bg">
+      <div className="auth-card">
+        <div className="auth-logo">
+          <div className="auth-logo-icon">✦</div>
+          <div><div className="auth-logo-text">Habits</div><div className="auth-logo-sub">Progress, Not Perfection</div></div>
+        </div>
+        <button className="g-btn" onClick={gLogin}><GIcon/>Continue with Google</button>
+        <div className="auth-div">or</div>
+        <div style={{display:'flex',gap:'8px',marginBottom:'16px'}}>
+          {['login','signup'].map(m=><button key={m} className={`btn bsm ${mode===m?'bp':'bs'}`} style={{flex:1,justifyContent:'center'}} onClick={()=>setMode(m)}>{m==='login'?'Sign In':'Sign Up'}</button>)}
+        </div>
+        {err&&<div className="auth-err">{err}</div>}
+        <div className="fg"><label className="fl">Email</label><input className="fi" type="email" value={email} onChange={e=>setEmail(e.target.value)} placeholder="you@example.com" onKeyDown={e=>e.key==='Enter'&&eLogin()}/></div>
+        <div className="fg"><label className="fl">Password</label><input className="fi" type="password" value={pass} onChange={e=>setPass(e.target.value)} placeholder="••••••••" onKeyDown={e=>e.key==='Enter'&&eLogin()}/></div>
+        <button className="sub-btn" onClick={eLogin} disabled={loading}>{loading?'Please wait…':mode==='login'?'Sign In →':'Create Account →'}</button>
+        <button className="demo-btn" onClick={()=>onAuth({id:'demo',email:'demo@habits.app',demo:true})}>⚡ Try Demo — no account needed</button>
+        <div className="auth-sw">{mode==='login'?<>No account? <button onClick={()=>setMode('signup')}>Sign up free</button></>:<>Have one? <button onClick={()=>setMode('login')}>Sign in</button></>}</div>
+      </div>
+    </div>
+  );
+}
+
+// --- NEW MANUAL PAYMENT MODAL ---
+function PaymentModal({ user, onClose, addToast, onUpdateStatus }) {
+  const [utr, setUtr] = useState('');
+  const [loading, setLoading] = useState(false);
+
+  // 1. UPDATE THIS WITH YOUR ACTUAL GOOGLE PAY OR PHONEPE UPI ID
+  const upiId = "your_upi_id@bank"; 
+  const payeeName = "Parshwa Mehta";
+  const amount = "11.00";
+  
+  // This generates the actual payment string the QR code reads
+  const upiString = `upi://pay?pa=${upiId}&pn=${encodeURIComponent(payeeName)}&am=${amount}&cu=INR`;
+  
+  // We use a free API to generate the QR image so we don't have to install complex React libraries via Babel
+  const qrUrl = `https://api.qrserver.com/v1/create-qr-code/?size=180x180&data=${encodeURIComponent(upiString)}`;
+
+  const submitUtr = async () => {
+    if (utr.length < 12) {
+      addToast('UTR must be exactly 12 digits', '❌');
+      return;
+    }
+    setLoading(true);
+
+    // Save the UTR to Supabase and flip status to pending
+    const { error } = await sb
+      .from('user_data')
+      .update({ pending_utr: utr, sub_status: 'pending' })
+      .eq('user_id', user.id);
+
+    setLoading(false);
+
+    if (error) {
+      addToast('Failed to submit UTR. Try again.', '❌');
+    } else {
+      addToast('UTR Submitted! Verifying soon.', '⏳');
+      onUpdateStatus('pending'); // Live UI update
+      onClose();
+    }
+  };
+
+  return (
+    <div className="ov" onClick={(e) => e.target.className === 'ov' && onClose()}>
+      <div className="modal" style={{ textAlign: 'center', padding: '30px' }}>
+        <h2 style={{ marginBottom: '10px' }}>Unlock Pro for ₹11/Year</h2>
+        <p style={{ fontSize: '12px', color: 'var(--text3)', marginBottom: '20px', lineHeight: 1.4 }}>
+          Scan with GPay, PhonePe, or Paytm.<br/>
+          Once paid, enter your UTR number below.
+        </p>
+        
+        <div style={{ background: 'white', padding: '15px', display: 'inline-block', borderRadius: '10px', marginBottom: '20px' }}>
+           <img src={qrUrl} alt="UPI QR Code" style={{ width: '150px', height: '150px' }} />
+        </div>
+
+        <div className="fg" style={{ textAlign: 'left' }}>
+          <label className="fl">Enter 12-Digit UTR Number</label>
+          <input 
+            className="fi" 
+            type="text" 
+            maxLength="12"
+            value={utr} 
+            onChange={(e) => setUtr(e.target.value.replace(/[^0-9]/g, ''))} // Strips out anything that isn't a number
+            placeholder="e.g. 312345678901" 
+          />
+        </div>
+        
+        <button className="btn bp" style={{ width: '100%', justifyContent: 'center', padding: '12px', marginTop: '10px' }} onClick={submitUtr} disabled={loading}>
+          {loading ? 'Submitting...' : 'Verify Payment'}
+        </button>
+      </div>
+    </div>
+  );
+}
+ 
+function HabitModal({habit,onSave,onClose}){
+  const [name,setName]=useState(habit?.name||'');
+  const [emoji,setEmoji]=useState(habit?.emoji||'🎯');
+  const [goal,setGoal]=useState(habit?.goal||'');
+  const [color,setColor]=useState(habit?.color||COLORS[0]);
+  const [category, setCategory]=useState(habit?.category||'Other');
+  
+  return(
+    <div className="ov" onClick={e=>e.target.className==='ov'&&onClose()}>
+      <div className="modal">
+        <div className="mh"><div className="mt2">{habit?'Edit Habit':'New Habit'}</div><button className="mc2" onClick={onClose}>×</button></div>
+        <div className="mb">
+          <div className="fg"><label className="fl">Name</label><input className="fi" value={name} onChange={e=>setName(e.target.value)} placeholder="e.g. Morning Run" autoFocus/></div>
+          <div className="fg"><label className="fl">Goal</label><input className="fi" value={goal} onChange={e=>setGoal(e.target.value)} placeholder="e.g. 30 min daily"/></div>
+          
+          <div className="fg">
+            <label className="fl">Category</label>
+            <div className="cat-wrap">
+              {CATS.map(c => (
+                <button key={c} className={`cat-btn ${category === c ? 'sel' : ''}`} onClick={() => setCategory(c)}>{c}</button>
+              ))}
+            </div>
+          </div>
+
+          <div className="fg"><label className="fl">Icon</label><div className="eg">{EMOJIS.map(e=><button key={e} className={`eo${emoji===e?' sel':''}`} onClick={()=>setEmoji(e)}>{e}</button>)}</div></div>
+          <div className="fg"><label className="fl">Color</label><div className="co-wrap">{COLORS.map(c=><div key={c} className={`co${color===c?' sel':''}`} style={{background:c}} onClick={()=>setColor(c)}/>)}</div></div>
+        </div>
+        <div className="mf">
+          <button className="btn bs bsm" onClick={onClose}>Cancel</button>
+          <button className="btn bp bsm" onClick={()=>name&&onSave({id:habit?.id||'h'+Date.now(),name:name.toUpperCase(),emoji,goal,color,category})} disabled={!name.trim()}>{habit?'Save':'Add Habit'}</button>
+        </div>
+      </div>
+    </div>
+  );
+}
+ 
+function WeekView({habits,logs,onToggle,wOff,setWOff,onAdd,onEdit,onDel}){
+  const dates=getWD(wOff);const today=todayStr();
+  return(
+    <div>
+      <div className="wnav">
+        <button className="btn bs bsm" onClick={()=>setWOff(o=>o-1)}>← Prev</button>
+        <span className="wnav-lbl">{wOff===0?'This Week':wOff===-1?'Last Week':`${Math.abs(wOff)}w ago`}</span>
+        <button className="btn bs bsm" onClick={()=>setWOff(o=>Math.min(0,o+1))} disabled={wOff===0}>Next →</button>
+        <div style={{flex:1}}/>
+        <button className="btn bp bsm" onClick={onAdd}>+ Add Habit</button>
+      </div>
+      {habits.length===0?(
+        <div className="empty"><div className="empty-icon">🌱</div><div className="empty-title">Start your journey</div><div className="empty-sub">Add your first habit to begin tracking</div><button className="btn bp" onClick={onAdd}>+ Add Habit</button></div>
+      ):(
+        <div className="tw">
+          <table className="htable">
+            <thead><tr>
+              <th style={{textAlign:'left',minWidth:190}}>HABIT</th>
+              {dates.map(d=>{const dt=new Date(d+'T00:00:00');const it=d===today;return(
+                <th key={d} className={`dth${it?' tc':''}`}><div className="dn">{DAY_SHORT[dt.getDay()]}</div><div className="dd">{dt.getDate()}</div></th>
+              );})}
+              <th style={{textAlign:'left',minWidth:130}}>PROGRESS</th>
+            </tr></thead>
+            <tbody>{habits.map(h=>{
+              const ci=COLORS.indexOf(h.color);const bg=ci>=0?BCOLORS[ci]:'rgba(255,255,255,0.05)';
+              const done=dates.filter(d=>logs[d]?.[h.id]).length;const pct=Math.round(done/dates.length*100);
+              return(
+                <tr key={h.id}>
+                  <td><div className="hcell">
+                    <div className="hc-icon" style={{background:bg}}>{h.emoji}</div>
+                    <div><div className="hc-name" style={{color:h.color}}>{h.name}</div>{h.goal&&<div className="hc-goal">{h.goal}</div>}</div>
+                    <div className="hcell-acts">
+                      <button className="btn bg2 bsm" style={{padding:'3px 6px'}} onClick={()=>onEdit(h)}>✏️</button>
+                      <button className="btn bg2 bsm" style={{padding:'3px 6px'}} onClick={()=>onDel(h.id)}>🗑️</button>
+                    </div>
+                  </div></td>
+                  {dates.map(d=>{
+                    const done2=!!(logs[d]?.[h.id]);const isFut=d>today;const isPast=d<today;
+                    return(
+                      <td key={d} className="cc">
+                        <button className={`chk${done2?' done':isFut?' fut':isPast&&!done2?' missed':''}`} style={done2?{background:h.color,borderColor:h.color,boxShadow:`0 0 8px ${h.color}44`}:{}} onClick={()=>!isFut&&onToggle(d,h.id)}/>
+                      </td>
+                    );
+                  })}
+                  <td className="prog-cell"><div className="prog-row"><div className="prog-bar"><div className="prog-fill" style={{width:pct+'%',background:h.color}}/></div><span className="prog-pct">{pct}%</span></div></td>
+                </tr>
+              );
+            })}</tbody>
+          </table>
+        </div>
+      )}
+    </div>
+  );
+}
+ 
+function MonthView({habits,logs,onToggle,selM,setSelM}){
+  const now=new Date();const y=now.getFullYear();const today=todayStr();const dates=getMD(y,selM);
+  return(
+    <div>
+      <div className="wnav" style={{marginBottom:16}}>
+        <button className="btn bs bsm" onClick={()=>setSelM(m=>Math.max(0,m-1))}>← Prev</button>
+        <span className="wnav-lbl">{MONTHS[selM]}</span>
+        <button className="btn bs bsm" onClick={()=>setSelM(m=>Math.min(now.getMonth(),m+1))} disabled={selM===now.getMonth()}>Next →</button>
+      </div>
+      <div className="tw mt-scroll" style={{maxHeight:'calc(100vh - 320px)',overflowY:'auto'}}>
+        <table className="mt">
+          <thead><tr>
+            <th className="hc">HABIT</th>
+            {dates.map(d=>{const dt=new Date(d+'T00:00:00');return<th key={d} style={d===today?{color:'var(--accent)'}:{}}>{dt.getDate()}</th>;})}
+            <th>%</th>
+          </tr></thead>
+          <tbody>{habits.map(h=>{
+            const dc=dates.filter(d=>logs[d]?.[h.id]).length;const pct=dates.length?Math.round(dc/dates.length*100):0;
+            return(
+              <tr key={h.id}>
+                <td className="hc"><div style={{display:'flex',alignItems:'center',gap:7}}><span>{h.emoji}</span><span style={{fontSize:11,fontWeight:700,color:h.color}}>{h.name}</span></div></td>
+                {dates.map(d=>{const done=!!(logs[d]?.[h.id]);const isFut=d>today;const isPast=d<today;return(
+                  <td key={d}><button className={`mchk${done?' done':isFut?' fut':isPast&&!done?' missed':''}`} style={done?{background:h.color,borderColor:h.color}:{}} onClick={()=>!isFut&&onToggle(d,h.id)}>{done?'✓':''}</button></td>
+                );})}
+                <td><div className="prog-row" style={{justifyContent:'flex-end'}}><div className="prog-bar" style={{maxWidth:50}}><div className="prog-fill" style={{width:pct+'%',background:h.color}}/></div><span className="prog-pct">{pct}%</span></div></td>
+              </tr>
+            );
+          })}</tbody>
+        </table>
+      </div>
+    </div>
+  );
+}
+
+function Heatmap({habits, logs, maxDates}) {
+  const dates = getYearDates();
+  const totalHabits = habits.length;
+  const [showMaxStreak, setShowMaxStreak] = useState(false);
+
+  return (
+    <div className="hm-wrapper">
+      <div className="hm-head">
+        <div className="hm-title">🔥 365 Day Consistency</div>
+        <div style={{display: 'flex', gap: 12, alignItems: 'center'}}>
+          <button className={`btn bsm ${showMaxStreak ? 'bp' : 'bs'}`} onClick={() => setShowMaxStreak(!showMaxStreak)}>
+            {showMaxStreak ? 'Hide Max Streak' : '✨ Highlight Max Streak'}
+          </button>
+          <div style={{fontSize: 10, color: 'var(--text3)', display: 'flex', gap: 4, alignItems: 'center'}}>
+            Less 
+            <div className="hm-cell" style={{margin:'0 2px'}}/>
+            <div className="hm-cell hm-l1"/>
+            <div className="hm-cell hm-l2"/>
+            <div className="hm-cell hm-l3"/>
+            <div className="hm-cell hm-l4"/> 
+            More
+          </div>
+        </div>
+      </div>
+      <div className="hm-grid">
+        {dates.map(date => {
+          const done = habits.filter(h => logs[date]?.[h.id]).length;
+          let level = 0;
+          
+          if (totalHabits > 0 && done > 0) {
+            const pct = done / totalHabits;
+            if (pct >= 0.9) level = 4;
+            else if (pct >= 0.6) level = 3;
+            else if (pct >= 0.3) level = 2;
+            else level = 1;
+          }
+
+          const isFuture = new Date(date) > new Date();
+          const isStreakPart = showMaxStreak && maxDates.has(date);
+
+          return (
+            <div 
+              key={date} 
+              className={`hm-cell ${level > 0 && !isFuture ? 'hm-l'+level : ''} ${isStreakPart ? 'hm-streak-glow' : ''}`}
+              title={isFuture ? '' : `${date}: ${done}/${totalHabits} habits completed`}
+              style={isFuture ? { opacity: 0 } : {}}
+            />
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
+function Badges({ level, xp, bestStreak }) {
+  const ALL_BADGES = [
+    { id: 'b1', name: 'First Step', icon: '🌱', desc: 'Reach Level 1', type: 'b-level', unlocked: level >= 1 },
+    { id: 'b2', name: 'Habit Builder', icon: '🛠️', desc: 'Reach Level 3', type: 'b-level', unlocked: level >= 3 },
+    { id: 'b3', name: 'Unstoppable', icon: '⭐', desc: 'Reach Level 5', type: 'b-level', unlocked: level >= 5 },
+    { id: 'b4', name: 'On Fire', icon: '🔥', desc: '7 Day Streak', type: 'b-streak', unlocked: bestStreak >= 7 },
+    { id: 'b5', name: 'Relentless', icon: '🌋', desc: '30 Day Streak', type: 'b-streak', unlocked: bestStreak >= 30 },
+    { id: 'b6', name: 'XP Hunter', icon: '💎', desc: '1,000 XP', type: 'b-xp', unlocked: xp >= 1000 },
+  ];
+  const unlockedCount = ALL_BADGES.filter(b => b.unlocked).length;
+
+  return (
+    <div className="hm-wrapper">
+      <div className="hm-head">
+        <div className="hm-title">🏅 Badges ({unlockedCount}/{ALL_BADGES.length})</div>
+      </div>
+      <div className="badges-grid">
+        {ALL_BADGES.map(b => (
+          <div key={b.id} className={`badge ${b.unlocked ? 'unlocked ' + b.type : ''}`} title={b.unlocked ? `Unlocked! ${b.desc}` : `Locked: ${b.desc}`}>
+            <div className="badge-icon" style={!b.unlocked ? { filter: 'grayscale(100%) opacity(0.15)' } : {}}>{b.icon}</div>
+            <div className="badge-name">{b.name}</div>
+            <div className="badge-desc">{b.desc}</div>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+ 
+function OverView({habits,logs,onSel, level, xp, globalStreakData}){
+  const now=new Date();const y=now.getFullYear();
+  return(
+    <div>
+      <Badges level={level} xp={xp} bestStreak={globalStreakData.best} />
+      <Heatmap habits={habits} logs={logs} maxDates={globalStreakData.maxDates} />
+      <div className="ov-grid">
+        {MONTHS.map((m,i)=>{
+          const dates=getMD(y,i);const pct=cPct(dates,habits,logs);const isCurr=i===now.getMonth();const isFut=i>now.getMonth();
+          return(
+            <div key={m} className={`mc${isCurr?' curr':''}`} onClick={()=>!isFut&&onSel(i)} style={isFut?{opacity:0.3}:{}}>
+              {isCurr&&<div className="mc-tag">Current</div>}
+              <div className="mc-lbl">{m}</div>
+              <div className="mc-pct">{isFut?'—':pct+'%'}</div>
+              <div className="prog-bar"><div className="prog-fill" style={{width:(isFut?0:pct)+'%',background:'linear-gradient(90deg,var(--accent),var(--green))'}}/></div>
+              {!isFut&&<div className="mc-emj">{habits.map(h=><span key={h.id} title={h.name}>{h.emoji}</span>)}</div>}
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
+function InsightEngine({ habits, logs }) {
+  const [insight, setInsight] = useState("Log more habits to generate advanced data correlations.");
+
+  useEffect(() => {
+    let validInsights = [];
+
+    for (let i = 0; i < habits.length; i++) {
+      for (let j = 0; j < habits.length; j++) {
+        if (i === j) continue;
+        let h1 = habits[i];
+        let h2 = habits[j];
+        
+        let count1 = 0;
+        let countBoth = 0;
+
+        Object.keys(logs).forEach(date => {
+          if (logs[date]?.[h1.id]) {
+            count1++;
+            if (logs[date]?.[h2.id]) countBoth++;
+          }
+        });
+
+        if (count1 > 2) {
+          let correlation = countBoth / count1;
+          if (correlation >= 0.5) {
+            validInsights.push({ h1, h2, pct: Math.round(correlation * 100) });
+          }
+        }
+      }
+    }
+
+    if (validInsights.length > 0) {
+      const randomIndex = Math.floor(Math.random() * validInsights.length);
+      const bestPair = validInsights[randomIndex];
+      
+      setInsight(
+        <>
+          <div className="insight-tag">Data Insight</div><br/>
+          When you complete <span>{bestPair.h1.emoji} {bestPair.h1.name}</span>, you are <span>{bestPair.pct}%</span> likely to also complete <span>{bestPair.h2.emoji} {bestPair.h2.name}</span>.
+        </>
+      );
+    } else {
+        setInsight("Keep logging habits! The engine needs a few more days of data to find patterns.");
+    }
+  }, [habits, logs]);
+
+  return (
+    <div className="insight-card">
+      <div className="insight-icon">🧠</div>
+      <div className="insight-text">{insight}</div>
+    </div>
+  );
+}
+ 
+function Analytics({habits,logs}){
+  const lRef=useRef();const bRef=useRef();const rRef=useRef();const charts=useRef({});
+  const [period,setPeriod]=useState('week');
+  
+  useEffect(()=>{
+    const dates=period==='week'?getWD(0):getMD(new Date().getFullYear(),new Date().getMonth());
+    const labels=dates.map(d=>{const dt=new Date(d+'T00:00:00');return dt.toLocaleDateString('en',{month:'short',day:'numeric'});});
+    const ld=dates.map(d=>{const done=habits.filter(h=>logs[d]?.[h.id]).length;return habits.length?Math.round(done/habits.length*100):0;});
+    const bd=habits.map(h=>dates.filter(d=>logs[d]?.[h.id]).length);
+    
+    const catData = {};
+    const catTotals = {};
+    habits.forEach(h => {
+      const cat = h.category || 'Other';
+      if (!catData[cat]) { catData[cat] = 0; catTotals[cat] = 0; }
+      dates.forEach(d => {
+        catTotals[cat]++;
+        if (logs[d]?.[h.id]) catData[cat]++;
+      });
+    });
+    
+    const rLabels = Object.keys(catData);
+    const rData = rLabels.map(c => catTotals[c] > 0 ? Math.round((catData[c]/catTotals[c])*100) : 0);
+
+    Object.values(charts.current).forEach(c=>c?.destroy());charts.current={};
+    const tc='#5e5d72';const gc='#2e2e34';
+
+    if(lRef.current)charts.current.l=new Chart(lRef.current,{type:'line',data:{labels,datasets:[{label:'%',data:ld,borderColor:'#e07b39',backgroundColor:'rgba(224,123,57,0.07)',tension:0.4,fill:true,pointBackgroundColor:'#e07b39',pointRadius:4,borderWidth:2}]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},scales:{y:{min:0,max:100,ticks:{color:tc,callback:v=>v+'%'},grid:{color:gc},border:{display:false}},x:{ticks:{color:tc},grid:{display:false},border:{display:false}}}}});
+    if(bRef.current)charts.current.b=new Chart(bRef.current,{type:'bar',data:{labels:habits.map(h=>h.emoji),datasets:[{data:bd,backgroundColor:habits.map(h=>h.color+'bb'),borderColor:habits.map(h=>h.color),borderWidth:1,borderRadius:6}]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},scales:{y:{ticks:{color:tc},grid:{color:gc},border:{display:false}},x:{ticks:{color:tc,font:{size:16}},grid:{display:false},border:{display:false}}}}});
+    if(rRef.current && rLabels.length > 0)charts.current.r=new Chart(rRef.current,{type:'radar',data:{labels:rLabels,datasets:[{label:'Category Balance %',data:rData,backgroundColor:'rgba(62,207,142,0.15)',borderColor:'#3ecf8e',borderWidth:2,pointBackgroundColor:'#3ecf8e',pointRadius:3}]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},scales:{r:{min:0,max:100,ticks:{display:false},grid:{color:'rgba(255,255,255,0.05)'},angleLines:{color:'rgba(255,255,255,0.05)'},pointLabels:{color:tc,font:{size:11,weight:600}}}}}});
+    
+    return()=>Object.values(charts.current).forEach(c=>c?.destroy());
+  },[habits,logs,period]);
+
+  return(
+    <div>
+      <InsightEngine habits={habits} logs={logs} />
+      
+      <div style={{display:'flex',gap:8,marginBottom:16}}>
+        {['week','month'].map(p=><button key={p} className={`btn bsm ${period===p?'bp':'bs'}`} onClick={()=>setPeriod(p)}>{p==='week'?'This Week':'This Month'}</button>)}
+      </div>
+      <div className="ch-grid">
+        <div className="ch-card"><div className="ch-head"><div className="ch-title">📈 Consistency Over Time</div></div><div className="ch-wrap"><canvas ref={lRef}/></div></div>
+        <div className="ch-card"><div className="ch-head"><div className="ch-title">🕸️ Life Balance Radar</div></div><div className="ch-wrap"><canvas ref={rRef}/></div></div>
+        <div className="ch-card"><div className="ch-head"><div className="ch-title">📊 Per Habit</div></div><div className="ch-wrap"><canvas ref={bRef}/></div></div>
+      </div>
+    </div>
+  );
+}
+ 
+function App(){
+  const [user,setUser]=useState(null);
+  
+  const [habits,setHabits]=useState(DEF_HABITS);
+  const [logs,setLogs]=useState({});
+  
+  // NEW: Tracking Subscription Status
+  const [subStatus, setSubStatus] = useState('inactive');
+  
+  const [dataLoaded,setDataLoaded]=useState(false); 
+  const [tab,setTab]=useState('week');
+  const [wOff,setWOff]=useState(0);
+  const [selM,setSelM]=useState(new Date().getMonth());
+  const [modal,setModal]=useState(null);
+  const [toasts,setToasts]=useState([]);
+
+  // --- 1. AUTHENTICATION ---
+  useEffect(()=>{
+    if(!sb)return;
+    sb.auth.getSession().then(({data:{session}})=>{
+      if(session?.user&&!user)setUser(session.user);
+    });
+    const{data:{subscription}}=sb.auth.onAuthStateChange((event,session)=>{
+      if(session?.user){
+        setUser(session.user);
+        if(event === 'SIGNED_IN') addToast('Signed in successfully!', '🎉');
+      } else if(event === 'SIGNED_OUT') {
+        setUser(null);
+        setHabits(DEF_HABITS);
+        setLogs({});
+        setSubStatus('inactive');
+        setDataLoaded(false);
+      }
+    });
+    return()=>subscription.unsubscribe();
+  },[]);
+
+  // --- 2. BULLETPROOF FETCH ---
+  useEffect(()=>{
+    if(!user || !sb) return;
+    
+    const fetchCloudData = async () => {
+      // Pulling the new sub_status column alongside logs
+      const { data, error } = await sb.from('user_data').select('habits, logs, sub_status').eq('user_id', user.id).single();
+      
+      if (data) {
+        setHabits(data.habits || []);
+        setLogs(data.logs || {});
+        setSubStatus(data.sub_status || 'inactive');
+        setDataLoaded(true); 
+      } else if (error && error.code === 'PGRST116') {
+        await sb.from('user_data').insert({ user_id: user.id, habits: DEF_HABITS, logs: {}, sub_status: 'inactive' });
+        setHabits(DEF_HABITS);
+        setLogs({});
+        setSubStatus('inactive');
+        setDataLoaded(true); 
+      } else {
+        console.error("Database Error:", error);
+      }
+    };
+
+    fetchCloudData();
+  }, [user]);
+
+  // --- 3. BULLETPROOF SAVE ---
+  useEffect(()=>{
+    if(!user || !sb || !dataLoaded) return;
+
+    const saveToCloud = async () => {
+      const { error } = await sb.from('user_data').upsert({ user_id: user.id, habits: habits, logs: logs, updated_at: new Date().toISOString() });
+      if (error) { console.error("Failed to save:", error); addToast('Error saving to cloud', '❌'); }
+    };
+
+    const timeout = setTimeout(saveToCloud, 500);
+    return () => clearTimeout(timeout);
+  }, [habits, logs, user, dataLoaded]);
+
+  const addToast=useCallback((msg,icon='✅')=>{const id=Date.now();setToasts(t=>[...t,{id,msg,icon}]);setTimeout(()=>setToasts(t=>t.filter(x=>x.id!==id)),3000);},[]);
+  const toggleLog=useCallback((date,hid)=>setLogs(prev=>({...prev,[date]:{...(prev[date]||{}),[hid]:!(prev[date]?.[hid])}})),[]);
+  
+  const saveHabit=h=>{
+    if(modal?.mode==='edit'){
+      setHabits(p=>p.map(x=>x.id===h.id?h:x));
+      addToast('Habit updated','✏️');
+    }else{
+      setHabits(p=>[...p,h]);
+      addToast(`${h.emoji} ${h.name} added`,'🎯');
+    }
+    setModal(null);
+  };
+  
+  const delHabit=id=>{
+    if(window.confirm('Delete this habit?')){
+      setHabits(p=>p.filter(x=>x.id!==id));
+      addToast('Habit deleted','🗑️');
+    }
+  };
+
+  const today=todayStr();
+  const wDates=getWD(0);
+  const weekPct=cPct(wDates,habits,logs);
+  const todayDone=habits.filter(h=>logs[today]?.[h.id]).length;
+  const todayPct=habits.length?Math.round(todayDone/habits.length*100):0;
+  
+  const globalStreakData = React.useMemo(() => {
+    const dates = getYearDates();
+    const total = habits.length;
+    if (total === 0) return { current: 0, best: 0, maxDates: new Set() };
+    
+    const threshold = Math.max(1, total - 1); 
+    
+    let current = 0;
+    let best = 0;
+    let tempDates = [];
+    let maxDates = [];
+    const td = todayStr();
+
+    dates.forEach(d => {
+      if (d > td) return;
+      const done = habits.filter(h => logs[d]?.[h.id]).length;
+      
+      if (done >= threshold) {
+        current++;
+        tempDates.push(d);
+        if (current > best) {
+          best = current;
+          maxDates = [...tempDates];
+        }
+      } else {
+        if (d !== td) {
+          current = 0;
+          tempDates = [];
+        }
+      }
+    });
+    return { current, best, maxDates: new Set(maxDates) };
+  }, [habits, logs]);
+  
+  const xp=gXP(logs);
+  const level=gLevel(xp);
+  
+  const nextXp=LXPS[Math.min(level+1,LXPS.length-1)];
+  const xpPct=Math.round(xp/nextXp*100);
+  const TABS=[{id:'week',icon:'📅',label:'This Week'},{id:'month',icon:'📆',label:'This Month'},{id:'overview',icon:'⊞',label:'Overview'},{id:'analytics',icon:'📊',label:'Analytics'}];
+ 
+  if(!user)return<><Auth onAuth={u=>{setUser(u);addToast('Welcome! 🎉','✦');}}/><Toasts ts={toasts}/></>;
+  
+  return(
+    <div className="shell">
+      <aside className="sidebar">
+        <div className="sb-header">
+          <div className="sb-brand">My <span>Habits</span></div>
+          <div className="sb-tagline">Progress, Not Perfection</div>
+        </div>
+        <button className="sb-add" onClick={()=>setModal({mode:'add'})}><div className="sb-add-icon">+</div>Add Habit</button>
+        <div className="sb-habits">
+          <div className="sb-section">Your Habits</div>
+          {habits.map(h=>{const s=gStreak(h.id,logs).current;const ci=COLORS.indexOf(h.color);const bg=ci>=0?BCOLORS[ci]:'rgba(255,255,255,0.05)';return(
+            <div key={h.id} className="sb-habit" onClick={()=>setModal({mode:'edit',habit:h})}>
+              <div className="sb-habit-icon" style={{background:bg}}>{h.emoji}</div>
+              <div className="sb-habit-info">
+                <div className="sb-habit-name" style={{color:h.color}}>{h.name}</div>
+                {h.goal&&<div className="sb-habit-goal">{h.goal}</div>}
+              </div>
+              {s>0&&<div className="sb-habit-streak">🔥{s}</div>}
+            </div>
+          );})}
+          {habits.length===0&&<div style={{padding:'12px 10px',fontSize:12,color:'var(--text3)'}}>No habits yet.</div>}
+        </div>
+        <div className="xp-strip">
+          <div className="xp-meta"><span>Lv.{level} {LEVELS[level]}</span><span>{xp}/{nextXp} XP</span></div>
+          <div className="xp-bar"><div className="xp-fill" style={{width:xpPct+'%'}}/></div>
+        </div>
+        <div className="sb-footer" style={{ flexWrap: 'wrap' }}>
+          <div className="sb-user">
+            <div className="sb-avatar">{(user.email||'D')[0].toUpperCase()}</div>
+            <div className="sb-user-info">
+              <div className="sb-user-name">{user.user_metadata?.full_name||user.email?.split('@')[0]||'Demo User'}</div>
+              <div className="sb-user-email">{user.email||'demo@habits.app'}</div>
+            </div>
+          </div>
+          
+          {/* DYNAMIC PRO STATUS BANNER */}
+          {subStatus === 'inactive' && (
+            <button className="btn bp" style={{ width: '100%', marginBottom: '8px', justifyContent: 'center', background: 'linear-gradient(90deg, #8b5cf6, #ec4899)' }} onClick={() => setModal({mode: 'upgrade'})}>
+              ⭐ Upgrade to Pro
+            </button>
+          )}
+          {subStatus === 'pending' && (
+            <div style={{ width: '100%', marginBottom: '8px', padding: '8px', background: 'var(--bg4)', borderRadius: 'var(--r-sm)', fontSize: '11px', color: 'var(--text2)', textAlign: 'center', border: '1px dashed var(--accent)' }}>
+              ⏳ Payment verifying (max 24h)
+            </div>
+          )}
+          {subStatus === 'active' && (
+            <div style={{ width: '100%', marginBottom: '8px', padding: '8px', background: 'rgba(62,207,142,0.1)', borderRadius: 'var(--r-sm)', fontSize: '11px', color: 'var(--green)', textAlign: 'center', fontWeight: 'bold', border: '1px solid rgba(62,207,142,0.3)' }}>
+              ⭐ PRO ACTIVE
+            </div>
+          )}
+
+          <button className="sb-signout" onClick={()=>{setUser(null);sb?.auth.signOut();}}>Sign Out</button>
+        </div>
+      </aside>
+ 
+      <main className="main">
+        <div className="topbar">
+          <div className="topbar-inner">
+            <div><div className="topbar-title">Habits</div><div className="topbar-sub">Progress, Not Perfection</div></div>
+            <div style={{display:'flex',alignItems:'center',gap:12}}>
+              <div style={{fontSize:11,color:'var(--text3)',letterSpacing:'0.04em'}}>{new Date().toLocaleDateString('en-US',{weekday:'short',month:'short',day:'numeric',year:'numeric'})}</div>
+              <button className="btn bp bsm" onClick={()=>setModal({mode:'add'})}>+ Add Habit</button>
+            </div>
+          </div>
+          <div className="stats-row">
+            <div className="stat-card"><div className="stat-top" style={{background:'var(--blue)'}}/><div className="stat-value">{habits.length}</div><div className="stat-label">Active Habits</div><div className="stat-icon-bg">✦</div></div>
+            <div className="stat-card"><div className="stat-top" style={{background:'var(--green)'}}/><div className="stat-value">{weekPct}%</div><div className="stat-label">Week Average</div><div className="stat-icon-bg">📊</div></div>
+            <div className="stat-card"><div className="stat-top" style={{background:'var(--accent)'}}/><div className="stat-value" style={{color:'var(--accent)'}}>🔥 {globalStreakData.current}</div><div className="stat-label">Day Streak <span style={{textTransform:'none', opacity:0.7, fontWeight:500, marginLeft: 4}}>(Best: {globalStreakData.best})</span></div></div>
+            <div className="stat-card"><div className="stat-top"/><div className="stat-value">{todayPct}%</div><div className="stat-label">Today</div><div className="stat-icon-bg">📅</div></div>
+          </div>
+          <div className="tabs">
+            {TABS.map(t=><button key={t.id} className={`tab${tab===t.id?' active':''}`} onClick={()=>setTab(t.id)}><span>{t.icon}</span>{t.label}</button>)}
+          </div>
+        </div>
+        <div className="content">
+          {tab==='week'&&<WeekView habits={habits} logs={logs} onToggle={toggleLog} wOff={wOff} setWOff={setWOff} onAdd={()=>setModal({mode:'add'})} onEdit={h=>setModal({mode:'edit',habit:h})} onDel={delHabit}/>}
+          {tab==='month'&&<MonthView habits={habits} logs={logs} onToggle={toggleLog} selM={selM} setSelM={setSelM}/>}
+          {tab==='overview'&&<OverView habits={habits} logs={logs} onSel={m=>{setSelM(m);setTab('month');}} level={level} xp={xp} globalStreakData={globalStreakData}/>}
+          {tab==='analytics'&&<Analytics habits={habits} logs={logs}/>}
+        </div>
+      </main>
+ 
+      {modal?.mode === 'add' || modal?.mode === 'edit' ? (
+        <HabitModal habit={modal.habit} onSave={saveHabit} onClose={()=>setModal(null)}/>
+      ) : modal?.mode === 'upgrade' ? (
+        <PaymentModal user={user} onClose={()=>setModal(null)} addToast={addToast} onUpdateStatus={setSubStatus} />
+      ) : null}
+
+      <Toasts ts={toasts}/>
+    </div>
+    
   );
 }
 ReactDOM.createRoot(document.getElementById('root')).render(<App/>);
